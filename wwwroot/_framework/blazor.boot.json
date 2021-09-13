@@ -86,26 +86,26 @@
       "dotnet.5.0.9.js": "sha256-6UjELrXtxaJnUc\/awWOPSG3AjZzIKlYUPWTKLGPf6XA="
     },
     "satelliteResources": {
-      "es": {
-        "es\/Blogifier.Shared.resources.dll": "sha256-lMDX9Ph4y+uEPjXo9ucrznMFgqM6J4+G7nIXS1yy76g="
-      },
-      "ru": {
-        "ru\/Blogifier.Shared.resources.dll": "sha256-+IKkVRn4saLtgtgpMYLKk37w3lLfH9h8uTLe2hzx1W8="
-      },
-      "pt-BR": {
-        "pt-BR\/Blogifier.Shared.resources.dll": "sha256-tG5DSyV6FDJ37i6gJEaTMwQui4SqtGNUFA4wPntroNo="
-      },
-      "fa": {
-        "fa\/Blogifier.Shared.resources.dll": "sha256-HUn6oa1XBENQP2\/Sp+qEUF36WZ5zMFFgkHJ2lgyyo2c="
-      },
-      "el-GR": {
-        "el-GR\/Blogifier.Shared.resources.dll": "sha256-qLaWpmFtsNcGIfKhQUEWi8d2RW4xUPbqtIY6fRQ2n4s="
+      "sv-SE": {
+        "sv-SE\/Blogifier.Shared.resources.dll": "sha256-GVdEAs2llT7S\/hAZCMU2zl2avk7ZDuncfOPw4Jm9F1I="
       },
       "ur-PK": {
         "ur-PK\/Blogifier.Shared.resources.dll": "sha256-5qxIlSsVdHiFYJBOYwfA0Xle4gd6ZRDs+0zZFVMgVx8="
       },
-      "sv-SE": {
-        "sv-SE\/Blogifier.Shared.resources.dll": "sha256-GVdEAs2llT7S\/hAZCMU2zl2avk7ZDuncfOPw4Jm9F1I="
+      "ru": {
+        "ru\/Blogifier.Shared.resources.dll": "sha256-+IKkVRn4saLtgtgpMYLKk37w3lLfH9h8uTLe2hzx1W8="
+      },
+      "fa": {
+        "fa\/Blogifier.Shared.resources.dll": "sha256-HUn6oa1XBENQP2\/Sp+qEUF36WZ5zMFFgkHJ2lgyyo2c="
+      },
+      "pt-BR": {
+        "pt-BR\/Blogifier.Shared.resources.dll": "sha256-tG5DSyV6FDJ37i6gJEaTMwQui4SqtGNUFA4wPntroNo="
+      },
+      "el-GR": {
+        "el-GR\/Blogifier.Shared.resources.dll": "sha256-qLaWpmFtsNcGIfKhQUEWi8d2RW4xUPbqtIY6fRQ2n4s="
+      },
+      "es": {
+        "es\/Blogifier.Shared.resources.dll": "sha256-lMDX9Ph4y+uEPjXo9ucrznMFgqM6J4+G7nIXS1yy76g="
       }
     }
   }
