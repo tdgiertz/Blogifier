@@ -37,5 +37,25 @@ namespace Blogifier.Shared.Extensions
             Regex scriptRegex = new Regex(@"<script[^>]*>[\s\S]*?</script>");
             return scriptRegex.Replace(str, "");
         }
+
+        public static string ReplaceIgnoreCase(this string str, string search, string replacement)
+        {
+            string result = Regex.Replace(
+                str,
+                Regex.Escape(search),
+                replacement.Replace("$", "$$"),
+                RegexOptions.IgnoreCase
+            );
+            return result;
+        }
+
+        public static string SanitizeFileName(this string str)
+        {
+            str = str.SanitizePath();
+
+            //TODO: add filename specific validation here
+
+            return str;
+        }
     }
 }

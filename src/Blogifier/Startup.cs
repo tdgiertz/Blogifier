@@ -1,4 +1,5 @@
 using Blogifier.Core.Extensions;
+using Blogifier.Core.Providers.EfCore.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -44,7 +45,6 @@ namespace Blogifier
 
             services.AddBlogProviders();
 
-            
             services.AddControllersWithViews();
             services.AddRazorPages();
 
