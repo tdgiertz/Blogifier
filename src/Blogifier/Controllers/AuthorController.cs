@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace Blogifier.Controllers
 
 		[Authorize]
 		[HttpDelete("{id:int}")]
-		public async Task<ActionResult<bool>> RemoveAuthor(int id)
+		public async Task<ActionResult<bool>> RemoveAuthor(Guid id)
 		{
 			return await _authorProvider.Remove(id);
 		}

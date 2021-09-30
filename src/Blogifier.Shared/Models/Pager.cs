@@ -16,7 +16,7 @@
          Older = currentPage + 1;
       }
 
-      public void Configure(int total)
+      public void Configure(long total)
       {
          if (total == 0)
             return;
@@ -31,13 +31,13 @@
          {
             NotFound = true;
          }
-         LastPage = (total % ItemsPerPage) == 0 ? total / ItemsPerPage : (total / ItemsPerPage) + 1;
+         LastPage = (int)((total % ItemsPerPage) == 0 ? total / ItemsPerPage : (total / ItemsPerPage) + 1);
          if (LastPage == 0) LastPage = 1;
       }
 
       public int CurrentPage { get; set; } = 1;
       public int ItemsPerPage { get; set; }
-      public int Total { get; set; }
+      public long Total { get; set; }
       public bool NotFound { get; set; }
 
       public int Newer { get; set; }

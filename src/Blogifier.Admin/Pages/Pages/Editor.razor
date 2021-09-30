@@ -15,7 +15,7 @@
             <img class="bfeditor-cover" src="@Post.Cover" alt="@_localizer["cover"]" id="postCover">
             <div class="bfeditor-actions">
                 <div class="container d-flex">
-                @if (Post.Id == 0)
+                @if (Post.Id == default(Guid))
                 {
                     <button type="button" class="btn btn-blogifier me-3 px-4" @onclick="() => Publish()">@_localizer["publish"]</button>
                     <button type="button" class="btn btn-default me-auto" @onclick="() => Save()" @onclick:preventDefault>@_localizer["save"]</button>
@@ -141,7 +141,7 @@
        if (postAction == PostAction.Unpublish)
            Post.Published = DateTime.MinValue;
 
-       if (Post.Id == 0)
+       if (Post.Id == default(Guid))
        {
            Post.Slug = await _http.GetStringAsync($"api/post/getslug/{Post.Title}");
            Toaster.Toast(await _http.PostAsJsonAsync<Post>($"api/post/add", Post));
@@ -173,7 +173,7 @@
        await SavePost(PostAction.Unpublish);
    }
 
-   protected async Task Remove(int id)
+   protected async Task Remove(Guid id)
    {
        if (await _jsruntime.InvokeAsync<bool>("confirm", Confirm))
        {
@@ -198,7 +198,7 @@
    {
        return new Post
        {
-           Id = 0,
+           Id = default(Guid),
            Title = "",
            Description = "",
            Content = "",

@@ -49,6 +49,7 @@ namespace Blogifier.Shared
         public static string PostDraft = "D";
         public static string PostFeatured = "F";
         public static string PostPublished = "P";
+        public static string PostPopular = "Pop";
 
         public static string IdentityCookieName = ".AspNetCore.Identity.Application";
     }

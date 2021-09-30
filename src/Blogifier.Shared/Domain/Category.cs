@@ -6,9 +6,12 @@ namespace Blogifier.Shared
 {
     public class Category
     {
-        public Category() { }
+        public Category()
+        {
+            Id = Guid.NewGuid();
+        }
 
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         [Required]
         [StringLength(120)]
         public string Content { get; set; }

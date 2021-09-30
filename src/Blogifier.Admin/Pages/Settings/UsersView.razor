@@ -149,7 +149,7 @@
        }
    }
 
-   protected async Task Remove(int id)
+   protected async Task Remove(Guid id)
    {
        Toaster.Toast(await _http.DeleteAsync($"api/author/{id}"));
        await Load();
@@ -170,7 +170,7 @@
 
    protected async Task Save()
    {
-       if (SelectedAuthor.Id == 0)
+       if (SelectedAuthor.Id == default(Guid))
            Toaster.Toast(await _http.PostAsJsonAsync<Author>("api/author/add", SelectedAuthor));
        else
            Toaster.Toast(await _http.PutAsJsonAsync<Author>("api/author/update", SelectedAuthor));

@@ -240,22 +240,22 @@ namespace Blogifier.Controllers
             if (!string.IsNullOrEmpty(category))
             {
                 model.PostListType = PostListType.Category;
-                model.Posts = await _postProvider.GetList(model.Pager, 0, category, "PF");
+                model.Posts = await _postProvider.GetList(model.Pager, default(Guid), category, "PF");
             }
             else if (string.IsNullOrEmpty(term))
             {
                 model.PostListType = PostListType.Blog;
                 if (model.Blog.IncludeFeatured)
-                    model.Posts = await _postProvider.GetList(model.Pager, 0, "", "FP");
+                    model.Posts = await _postProvider.GetList(model.Pager, default(Guid), "", "FP");
                 else
-                    model.Posts = await _postProvider.GetList(model.Pager, 0, "", "P");
+                    model.Posts = await _postProvider.GetList(model.Pager, default(Guid), "", "P");
             }
             else
             {
                 model.PostListType = PostListType.Search;
                 model.Blog.Title = term;
                 model.Blog.Description = "";
-                model.Posts = await _postProvider.Search(model.Pager, term, 0, "FP");
+                model.Posts = await _postProvider.Search(model.Pager, term, default(Guid), "FP");
             }
 
             if (model.Pager.ShowOlder) model.Pager.LinkToOlder = $"?page={model.Pager.Older}";

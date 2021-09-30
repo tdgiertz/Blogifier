@@ -127,7 +127,7 @@
        Categories = await _http.GetFromJsonAsync<List<CategoryItem>>($"api/category");
    }
 
-   protected async Task ShowEdit(int categoryId)
+   protected async Task ShowEdit(Guid categoryId)
    {
        CurrentCategory = await _http.GetFromJsonAsync<Category>($"api/category/byId/{categoryId}");
        IsEdit = true;
