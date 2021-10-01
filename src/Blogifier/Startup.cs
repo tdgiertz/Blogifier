@@ -1,5 +1,6 @@
 using Blogifier.Core.Extensions;
 using Blogifier.Core.Providers.EfCore.Extensions;
+using Blogifier.Core.Providers.MongoDb.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +28,7 @@ namespace Blogifier
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var section = Configuration.GetSection("Blogifier");
             Log.Warning("Start configure services");
 
             services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
@@ -43,7 +45,14 @@ namespace Blogifier
 
             services.AddBlogDatabase(Configuration);
 
-            services.AddBlogProviders();
+            if (section.GetValue<string>("DbProvider") == "MongoDb")
+            {
+                services.AddMongoDbBlogProviders();
+            }
+            else
+            {
+                services.AddEfCoreBlogProviders();
+            }
 
             services.AddControllersWithViews();
             services.AddRazorPages();

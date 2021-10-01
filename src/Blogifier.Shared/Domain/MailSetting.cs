@@ -11,7 +11,7 @@ namespace Blogifier.Shared
         }
 
         public Guid Id { get; set; }
-
+        public Guid BlogId { get; set; }
         [Required]
         [StringLength(160)]
         public string Host { get; set; }

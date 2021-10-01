@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+		<Version>2.9.1.4</Version>
+		<Authors>blogifierdotnet</Authors>
+		<Description>Blogifier is an open-source publishing platform Written in .NET 5.0 and Blazor WebAssembly.</Description>
+		<Copyright>Blogifier.Net</Copyright>
+		<PackageProjectUrl>https://blogifier.net</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/blogifierdotnet/Blogifier</RepositoryUrl>
+		<PackageTags>blog,blogifier,asp.net,.net core,blogifier.net,asp.net core</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="2.13.0" />
+		<PackageReference Include="Serilog" Version="2.10.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Blogifier.Shared\Blogifier.Shared.csproj" />
+		<ProjectReference Include="..\Blogifier.Core\Blogifier.Core.csproj" />
+		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
+		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Data\Migrations\" />
+	</ItemGroup>
+
+</Project>

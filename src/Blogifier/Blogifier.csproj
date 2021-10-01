@@ -12,7 +12,7 @@
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Serilog.Sinks.File" Version="5.0.0-dev-00905" />
+		<PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
 		<PackageReference Include="System.ServiceModel.Syndication" Version="5.0.0" />
 	</ItemGroup>
 
@@ -22,6 +22,7 @@
 		<ProjectReference Include="..\Blogifier.Shared\Blogifier.Shared.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers.EfCore\Blogifier.Core.Providers.EfCore.csproj" />
+		<ProjectReference Include="..\Blogifier.Core.Providers.MongoDb\Blogifier.Core.Providers.MongoDb.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

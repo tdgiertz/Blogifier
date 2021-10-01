@@ -2,6 +2,7 @@ using Blogifier.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System;
 
@@ -22,6 +23,17 @@ namespace Blogifier.Core.Extensions
 
             if (section.GetValue<string>("DbProvider") == "Postgres")
                 services.AddDbContext<AppDbContext>(o => o.UseNpgsql(conn));
+
+            if (section.GetValue<string>("DbProvider") == "MongoDb")
+            {
+                services.AddTransient<IMongoDatabase>(provider =>
+                {
+                    var dbName = section.GetValue<string>("MongoDbDatabaseName");
+                    var client = new MongoClient(conn);
+
+                    return client.GetDatabase(dbName);
+                });
+            }
 
             //TODO: this is not tested
             if (section.GetValue<string>("DbProvider") == "MySql")
