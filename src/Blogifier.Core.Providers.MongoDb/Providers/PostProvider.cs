@@ -18,12 +18,14 @@ namespace Blogifier.Core.Providers.MongoDb
         private readonly IMongoCollection<Post> _postCollection;
         private readonly ICategoryProvider _categoryProvider;
         private readonly IBlogProvider _blogProvider;
+        private readonly IAuthorProvider _authorProvider;
 
-        public PostProvider(IMongoDatabase db, ICategoryProvider categoryProvider, IBlogProvider blogProvider)
+        public PostProvider(IMongoDatabase db, ICategoryProvider categoryProvider, IBlogProvider blogProvider, IAuthorProvider authorProvider)
         {
             _postCollection = db.GetNamedCollection<Post>();
             _categoryProvider = categoryProvider;
             _blogProvider = blogProvider;
+            _authorProvider = authorProvider;
         }
 
         public async Task<List<Post>> GetPosts(PublishedStatus filter, PostType postType)
@@ -100,7 +102,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 }
                 if (rank > 0)
                 {
-                    results.Add(new SearchResult { Rank = rank, Item = PostToItem(p, sanitize) });
+                    results.Add(new SearchResult { Rank = rank, Item = await PostToItem(p, sanitize) });
                 }
             }
 
@@ -148,7 +150,7 @@ namespace Blogifier.Core.Providers.MongoDb
                .SortByDescending(p => p.IsFeatured)
                .ThenByDescending(p => p.Published).ToList();
 
-            SetOlderNewerPosts(slug, model, all);
+            await SetOlderNewerPosts(slug, model, all);
 
             var post = await _postCollection.Find(p => p.Slug == slug).SingleAsync();
             post.PostViews++;
@@ -161,7 +163,7 @@ namespace Blogifier.Core.Providers.MongoDb
             return await Task.FromResult(model);
         }
 
-        private void SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
+        private async Task SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
         {
             if (all != null && all.Count > 0)
             {
@@ -169,13 +171,13 @@ namespace Blogifier.Core.Providers.MongoDb
                 {
                     if (all[i].Slug == slug)
                     {
-                        model.Post = PostToItem(all[i]);
+                        model.Post = await PostToItem(all[i]);
 
                         if (i > 0 && all[i - 1].Published > DateTime.MinValue)
-                            model.Newer = PostToItem(all[i - 1]);
+                            model.Newer = await PostToItem(all[i - 1]);
 
                         if (i + 1 < all.Count && all[i + 1].Published > DateTime.MinValue)
-                            model.Older = PostToItem(all[i + 1]);
+                            model.Older = await PostToItem(all[i + 1]);
 
                         break;
                     }
@@ -215,6 +217,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 return false;
 
             post.Blog = await _blogProvider.GetBlog();
+            post.BlogId = post.Blog.Id;
             post.DateCreated = DateTime.UtcNow;
 
             // sanitize HTML fields
@@ -275,9 +278,7 @@ namespace Blogifier.Core.Providers.MongoDb
         {
             var posts = await GetPagedPosts(pager, include, author, category);
 
-            var items = posts.Select(p => PostToItem(p));
-
-            return items;
+            return await PostToPostItemsAsync(posts);
         }
 
         private async Task<List<Post>> GetPostsCategoryContentAsync(string content)
@@ -295,9 +296,21 @@ namespace Blogifier.Core.Providers.MongoDb
                     ? builder.And(builder.Gt(p => p.Published, DateTime.MinValue), builder.Eq(p => p.AuthorId, author))
                     : builder.And(builder.Gt(p => p.Published, DateTime.MinValue));
 
-            var posts = await GetPagedAsync(_postCollection, pager, filter, new[] { new SortDefinition<Post> { IsDescending = true, Sort = p => p.Published } });
+            var posts = await GetPagedAsync(_postCollection, pager, filter, new[] { new Models.SortDefinition<Post> { IsDescending = true, Sort = p => p.Published } });
 
-            var items = posts.Select(p => PostToItem(p));
+            return await PostToPostItemsAsync(posts);
+        }
+
+        private async Task<IEnumerable<PostItem>> PostToPostItemsAsync(IEnumerable<Post> posts)
+        {
+            var itemTasks = posts.Select(p => PostToItem(p));
+
+            var items = new List<PostItem>();
+
+            foreach(var itemTask in itemTasks)
+            {
+                items.Add(await itemTask);
+            }
 
             return items;
         }
@@ -311,8 +324,10 @@ namespace Blogifier.Core.Providers.MongoDb
 
         #region Private methods
 
-        private PostItem PostToItem(Post p, bool sanitize = false)
+        private async Task<PostItem> PostToItem(Post p, bool sanitize = false)
         {
+            var author = await _authorProvider.GetAuthorAsync(p.AuthorId);
+
             var post = new PostItem
             {
                 Id = p.Id,
@@ -327,7 +342,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 Rating = p.Rating,
                 Published = p.Published,
                 Featured = p.IsFeatured,
-                Author = p.Author,
+                Author = author,
                 SocialFields = new List<SocialField>()
             };
 
@@ -470,10 +485,10 @@ namespace Blogifier.Core.Providers.MongoDb
                 }
             }
 
-            return await GetPagedAsync(_postCollection, pager, filter, new[] { new SortDefinition<Post> { IsDescending = true, Sort = p => p.Published } });
+            return await GetPagedAsync(_postCollection, pager, filter, new[] { new Models.SortDefinition<Post> { IsDescending = true, Sort = p => p.Published } });
         }
 
-        private async Task<List<T>> GetPagedAsync<T>(IMongoCollection<T> collection, Pager pager, FilterDefinition<T> filter, IEnumerable<SortDefinition<T>> sortDefinitions = null)
+        private async Task<List<T>> GetPagedAsync<T>(IMongoCollection<T> collection, Pager pager, FilterDefinition<T> filter, IEnumerable<Models.SortDefinition<T>> sortDefinitions = null)
         {
             filter ??= Builders<T>.Filter.Empty;
 
@@ -518,7 +533,7 @@ namespace Blogifier.Core.Providers.MongoDb
             return data.ToList();
         }
 
-        private MongoDB.Driver.SortDefinition<T> GetSortDefinition<T>(IEnumerable<SortDefinition<T>> sortDefinitions)
+        private MongoDB.Driver.SortDefinition<T> GetSortDefinition<T>(IEnumerable<Models.SortDefinition<T>> sortDefinitions)
         {
             var builder = Builders<T>.Sort;
 
@@ -548,11 +563,5 @@ namespace Blogifier.Core.Providers.MongoDb
         }
 
         #endregion
-    }
-
-    class SortDefinition<T>
-    {
-        public Expression<Func<T, object>> Sort { get; set; }
-        public bool IsDescending { get; set; }
     }
 }

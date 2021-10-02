@@ -19,13 +19,13 @@ namespace Blogifier.Controllers
 			_categoryProvider = categoryProvider;
 		}
 
-		[HttpGet("{postId:int}")]
+		[HttpGet("{postId:Guid}")]
 		public async Task<ICollection<Category>> GetPostCategories(Guid postId)
 		{
 			return await _categoryProvider.GetPostCategories(postId);
 		}
 
-        [HttpGet("byId/{categoryId:int}")]
+        [HttpGet("byId/{categoryId:Guid}")]
         public async Task<Category> GetCategory(Guid categoryId)
         {
             return await _categoryProvider.GetCategory(categoryId);
@@ -44,7 +44,7 @@ namespace Blogifier.Controllers
         }
 
         [Authorize]
-		[HttpPost("{postId:int}/{tag}")]
+		[HttpPost("{postId:Guid}/{tag}")]
 		public async Task<ActionResult<bool>> AddPostCategory(Guid postId, string tag)
 		{
 			return await _categoryProvider.AddPostCategory(postId, tag);
@@ -58,14 +58,14 @@ namespace Blogifier.Controllers
         }
 
         [Authorize]
-        [HttpPut("{postId:int}")]
+        [HttpPut("{postId:Guid}")]
         public async Task<ActionResult<bool>> SavePostCategories(Guid postId, List<Category> categories)
         {
             return await _categoryProvider.SavePostCategories(postId, categories);
         }
 
         [Authorize]
-        [HttpDelete("{categoryId:int}")]
+        [HttpDelete("{categoryId:Guid}")]
         public async Task<ActionResult<bool>> RemoveCategory(Guid categoryId)
         {
             return await _categoryProvider.RemoveCategory(categoryId);

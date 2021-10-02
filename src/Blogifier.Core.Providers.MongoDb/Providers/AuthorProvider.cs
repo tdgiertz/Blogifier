@@ -67,14 +67,17 @@ namespace Blogifier.Core.Providers.MongoDb
 			bool isAdmin = false;
 			var author = await _authorCollection.Find(a => a.Email == model.Email).FirstOrDefaultAsync();
 			if (author != null)
+            {
 				return false;
+            }
 
-			var blog = (MongoBlog)await _blogProvider.GetBlog();
+			var blog = (MongoBlog)await _blogProvider.TryGetBlog();
 			if (blog == null)
 			{
 				isAdmin = true; // first blog record - set user as admin
 				blog = new MongoBlog
 				{
+                    Id = Guid.NewGuid(),
 					Title = "Blog Title",
 					Description = "Short Blog Description",
 					Theme = "Standard",
@@ -93,12 +96,9 @@ namespace Blogifier.Core.Providers.MongoDb
 				}
 			}
 
-			blog = (MongoBlog)await _blogProvider.GetBlog();
-			if (blog == null)
-				return false;
-
 			author = new Author
 			{
+                Id = Guid.NewGuid(),
 				DisplayName = model.Name,
 				Email = model.Email,
 				Password = model.Password.Hash(_salt),
@@ -108,6 +108,8 @@ namespace Blogifier.Core.Providers.MongoDb
 				DateCreated = DateTime.UtcNow,
                 BlogId = blog.Id
 			};
+
+            await _authorCollection.InsertOneAsync(author);
 
 			blog.AuthorIds ??= new List<Guid>();
 			blog.AuthorIds.Add(author.Id);
@@ -123,7 +125,7 @@ namespace Blogifier.Core.Providers.MongoDb
 				return false;
             }
 
-			var blog = (MongoBlog)await _blogProvider.GetBlog();
+			var blog = (MongoBlog)await _blogProvider.TryGetBlog();
 			if (blog == null)
             {
 				return false;
@@ -133,6 +135,8 @@ namespace Blogifier.Core.Providers.MongoDb
             author.Password = author.Password.Hash(_salt);
             author.Avatar = string.Format(Constants.AvatarDataImage, author.DisplayName.Substring(0, 1).ToUpper());
             author.DateCreated = DateTime.UtcNow;
+
+            await _authorCollection.InsertOneAsync(author);
 
 			blog.AuthorIds ??= new List<Guid>();
 			blog.AuthorIds.Add(author.Id);
@@ -147,7 +151,9 @@ namespace Blogifier.Core.Providers.MongoDb
 				.FirstOrDefaultAsync();
 
 			if (existing == null)
+            {
 				return false;
+            }
 
             if(existing.IsAdmin && !author.IsAdmin)
             {
@@ -175,7 +181,9 @@ namespace Blogifier.Core.Providers.MongoDb
 				.FirstOrDefaultAsync();
 
 			if (existing == null)
+            {
 				return false;
+            }
 
 			existing.Password = model.Password.Hash(_salt);
 

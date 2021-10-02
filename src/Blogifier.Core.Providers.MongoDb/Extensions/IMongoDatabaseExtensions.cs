@@ -1,4 +1,5 @@
 using System;
+using Blogifier.Core.Providers.MongoDb.Models;
 using Blogifier.Shared;
 using MongoDB.Driver;
 
@@ -19,7 +20,7 @@ namespace Blogifier.Core.Providers.MongoDb.Extensions
             {
                 case nameof(Author):
                     return "Author";
-                case nameof(Blog):
+                case nameof(MongoBlog):
                     return "Blog";
                 case nameof(MailSetting):
                     return "MailSetting";

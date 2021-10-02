@@ -1,8 +1,9 @@
-using Blogifier.Core.Data;
 using Blogifier.Core.Extensions;
+using Blogifier.Core.Providers.MongoDb.Extensions;
 using Blogifier.Shared;
 using Blogifier.Shared.Extensions;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.ServiceModel.Syndication;
@@ -15,17 +16,19 @@ namespace Blogifier.Core.Providers.MongoDb
 {
 	public class SyndicationProvider : ISyndicationProvider
 	{
-		private readonly AppDbContext _dbContext;
 		private readonly IStorageProvider _storageProvider;
+        private readonly IBlogProvider _blogProvider;
+        private readonly IMongoCollection<Post> _postCollection;
 
         private static Guid _userId;
 		private static string _webRoot;
 		private static Uri _baseUrl;
 
-		public SyndicationProvider(AppDbContext dbContext, IStorageProvider storageProvider)
+		public SyndicationProvider(IMongoDatabase db, IStorageProvider storageProvider, IBlogProvider blogProvider)
 		{
-			_dbContext = dbContext;
+            _postCollection = db.GetNamedCollection<Post>();
             _storageProvider = storageProvider;
+            _blogProvider = blogProvider;
 		}
 
 		public async Task<List<Post>> GetPosts(string feedUrl, Guid userId, Uri baseUrl, string webRoot = "/")
@@ -63,22 +66,29 @@ namespace Blogifier.Core.Providers.MongoDb
 				post.Content = converter.Convert(post.Content);
 				post.Selected = false;
 
-				await _dbContext.Posts.AddAsync(post);
-				if (await _dbContext.SaveChangesAsync() == 0)
+                try
+                {
+				    await _postCollection.InsertOneAsync(post);
+				}
+                catch
 				{
 					Serilog.Log.Error($"Error saving post {post.Title}");
 					return false;
 				}
 
-				Post savedPost = await _dbContext.Posts.SingleAsync(p => p.Slug == post.Slug);
+				var savedPost = await _postCollection.Find(p => p.Slug == post.Slug).SingleAsync();
 				if(savedPost == null)
 				{
 					Serilog.Log.Error($"Error finding saved post - {post.Title}");
 					return false;
 				}
 
-				savedPost.Blog = await _dbContext.Blogs.FirstOrDefaultAsync();
-				return await _dbContext.SaveChangesAsync() > 0;
+				savedPost.Blog = await _blogProvider.GetBlog();
+                savedPost.BlogId = savedPost.Blog.Id;
+
+                var result = await _postCollection.ReplaceOneAsync(p => p.Id == post.Id, savedPost);
+
+                return result.IsAcknowledged && result.ModifiedCount > 0;
 			}
 			catch (Exception ex)
 			{
@@ -93,6 +103,7 @@ namespace Blogifier.Core.Providers.MongoDb
 		{
 			var post = new Post()
 			{
+                Id = Guid.NewGuid(),
 				AuthorId = _userId,
 				PostType = PostType.Post,
 				Title = syndicationItem.Title.Text,
@@ -128,6 +139,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 {
                     post.Categories.Add(new Category
                     {
+                        Id = Guid.NewGuid(),
                         Content = category.Name,
                         DateCreated = DateTime.UtcNow,
                         DateUpdated = DateTime.UtcNow
@@ -242,18 +254,17 @@ namespace Blogifier.Core.Providers.MongoDb
 		async Task<string> GetSlug(string title)
 		{
 			string slug = title.ToSlug();
-			Post post = await _dbContext.Posts.SingleOrDefaultAsync(p => p.Slug == slug);
+			Post post = await _postCollection.Find(p => p.Slug == slug).SingleOrDefaultAsync();
 
 			if (post == null)
 				return slug;
 
 			for (int i = 2; i < 100; i++)
 			{
-				post = await _dbContext.Posts.AsNoTracking()
-					.SingleAsync(p => p.Slug == $"{slug}{i}");
+				post = await _postCollection.Find(p => p.Slug == $"{slug}{i}").SingleAsync();
 
 				if (post == null)
-					return await Task.FromResult(slug + i.ToString());
+					return slug + i.ToString();
 			}
 			return slug;
 		}

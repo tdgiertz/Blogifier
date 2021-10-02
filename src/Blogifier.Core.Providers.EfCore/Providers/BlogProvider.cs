@@ -43,6 +43,11 @@ namespace Blogifier.Core.Providers.EfCore
 			return await _db.Blogs.OrderBy(b => b.Id).AsNoTracking().FirstAsync();
 		}
 
+		public async Task<Blog> TryGetBlog()
+		{
+			return await _db.Blogs.OrderBy(b => b.Id).AsNoTracking().FirstOrDefaultAsync();
+		}
+
 		public async Task<List<Category>> GetBlogCategories()
 		{
 			return await _db.Categories.AsNoTracking().ToListAsync();

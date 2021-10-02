@@ -58,21 +58,21 @@ namespace Blogifier.Controllers
 		}
 
 		[Authorize]
-		[HttpPut("publish/{id:int}")]
+		[HttpPut("publish/{id:Guid}")]
 		public async Task<ActionResult<bool>> PublishPost(Guid id, [FromBody] bool publish)
 		{
 			return await _postProvider.Publish(id, publish);
 		}
 
 		[Authorize]
-		[HttpPut("featured/{id:int}")]
+		[HttpPut("featured/{id:Guid}")]
 		public async Task<ActionResult<bool>> FeaturedPost(Guid id, [FromBody] bool featured)
 		{
 			return await _postProvider.Featured(id, featured);
 		}
 
 		[Authorize]
-		[HttpDelete("{id:int}")]
+		[HttpDelete("{id:Guid}")]
 		public async Task<ActionResult<bool>> RemovePost(Guid id)
 		{
 			return await _postProvider.Remove(id);

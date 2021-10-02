@@ -7,7 +7,6 @@ namespace Blogifier.Shared
     {
         public Subscriber()
         {
-            Id = Guid.NewGuid();
         }
 
         public Guid Id { get; set; }

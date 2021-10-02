@@ -64,6 +64,7 @@ namespace Blogifier.Core.Providers
                     m.AutoMap();
                     m.MapIdProperty(p => p.Id);
                     m.UnmapProperty(p => p.Author);
+                    m.UnmapProperty(p => p.Blog);
                 });
             }
 

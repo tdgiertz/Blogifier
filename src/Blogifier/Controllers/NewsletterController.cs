@@ -32,7 +32,7 @@ namespace Blogifier.Controllers
 			return await _newsletterProvider.GetSubscribers();
 		}
 
-		[HttpDelete("unsubscribe/{id:int}")]
+		[HttpDelete("unsubscribe/{id:Guid}")]
 		public async Task<ActionResult<bool>> RemoveSubscriber(Guid id)
 		{
 			return await _newsletterProvider.RemoveSubscriber(id);
@@ -46,14 +46,14 @@ namespace Blogifier.Controllers
 		}
 
 		[Authorize]
-		[HttpGet("send/{postId:int}")]
+		[HttpGet("send/{postId:Guid}")]
 		public async Task<bool> SendNewsletter(Guid postId)
 		{
 			return await _newsletterProvider.SendNewsletter(postId);
 		}
 
 		[Authorize]
-		[HttpDelete("remove/{id:int}")]
+		[HttpDelete("remove/{id:Guid}")]
 		public async Task<ActionResult<bool>> RemoveNewsletter(Guid id)
 		{
 			return await _newsletterProvider.RemoveNewsletter(id);

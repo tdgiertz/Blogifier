@@ -45,7 +45,7 @@ namespace Blogifier.Controllers
 		public async Task<ActionResult> Upload(IFormFile file, UploadType uploadType, Guid postId = default(Guid))
 		{
 			var author = await _authorProvider.FindByEmail(User.Identity.Name);
-			var post = postId == default(Guid) ? new Post() : await _postProvider.GetPostById(postId);
+			var post = postId == default(Guid) ? new Post { Id = Guid.NewGuid() } : await _postProvider.GetPostById(postId);
 
             var path = $"{author.Id}/{DateTime.Now.Year}/{DateTime.Now.Month}";
 			var fileName = $"data/{path}/{file.FileName}";

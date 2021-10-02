@@ -79,6 +79,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 var post = await _postProvider.GetPostById(postId);
                 var newsletter = new Newsletter()
                 {
+                    Id = Guid.NewGuid(),
                     PostId = postId,
                     DateCreated = DateTime.UtcNow,
                     Success = success,
@@ -130,7 +131,7 @@ namespace Blogifier.Core.Providers.MongoDb
         public async Task<MailSetting> GetMailSettings()
         {
             var settings = await _mailSettingCollection.Find(_ => true).FirstOrDefaultAsync();
-            return settings == null ? new MailSetting() : settings;
+            return settings == null ? new MailSetting { Id = Guid.NewGuid() } : settings;
         }
 
         public async Task<bool> SaveMailSettings(MailSetting mail)
@@ -144,6 +145,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 var blog = await _blogProvider.GetBlog();
                 var newMail = new MailSetting()
                 {
+                    Id = Guid.NewGuid(),
                     Host = mail.Host,
                     Port = mail.Port,
                     UserEmail = mail.UserEmail,

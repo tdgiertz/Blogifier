@@ -9,6 +9,7 @@ using Xunit;
 
 namespace Blogifier.Tests.MongoDb
 {
+
     public class PostProviderTest : MongoIntegrationTest
     {
         [Fact]
@@ -27,7 +28,8 @@ namespace Blogifier.Tests.MongoDb
             var storageProvider = new Mock<IStorageProvider>();
             storageProvider.Setup(s => s.GetThemeSettings(It.IsAny<string>())).Returns(Task.FromResult(new Shared.ThemeSettings { }));
             var blogProvider = new BlogProvider(_database, storageProvider.Object, categoryProvider);
-            var provider = new PostProvider(_database, categoryProvider, blogProvider);
+            var authorProvider = new AuthorProvider(_database, _configuration, blogProvider);
+            var provider = new PostProvider(_database, categoryProvider, blogProvider, authorProvider);
 
             var pager = new Pager(1, 2);
 

@@ -1,10 +1,12 @@
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Blogifier.Core.Providers;
 using Blogifier.Core.Providers.MongoDb.Extensions;
 using Blogifier.Core.Providers.MongoDb.Models;
 using Blogifier.Shared;
+using Microsoft.Extensions.Configuration;
 using Mongo2Go;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
@@ -18,8 +20,9 @@ namespace Blogifier.Tests.MongoDb
         private MongoDbRunner _runner;
         protected readonly IMongoDatabase _database;
         protected readonly IMongoCollection<Post> _postCollection;
-        protected readonly IMongoCollection<Blog> _blogCollection;
+        protected readonly IMongoCollection<MongoBlog> _blogCollection;
         protected readonly IMongoCollection<Author> _authorCollection;
+        protected readonly IConfiguration _configuration;
 
         protected Guid _category1Id;
         protected Guid _category2Id;
@@ -56,7 +59,15 @@ namespace Blogifier.Tests.MongoDb
 
             _postCollection = _database.GetNamedCollection<Post>();
             _authorCollection = _database.GetNamedCollection<Author>();
-            _blogCollection = _database.GetNamedCollection<Blog>();
+            _blogCollection = _database.GetNamedCollection<MongoBlog>();
+
+            var inMemorySettings = new Dictionary<string, string> {
+                {"Blogifier:Salt", "Test-Salt-Value"},
+            };
+
+            _configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(inMemorySettings)
+                .Build();
 
             Seed();
         }
@@ -120,6 +131,7 @@ namespace Blogifier.Tests.MongoDb
                 PostType = PostType.Post,
                 Categories = new System.Collections.Generic.List<Category> { category1, category2, category3 },
                 Blog = blog,
+                BlogId = blog.Id,
                 AuthorId = author.Id,
                 Author = author
             };
@@ -135,6 +147,7 @@ namespace Blogifier.Tests.MongoDb
                 PostType = PostType.Post,
                 Categories = new System.Collections.Generic.List<Category> { category2 },
                 Blog = blog,
+                BlogId = blog.Id,
                 AuthorId = author.Id,
                 Author = author
             };
@@ -150,6 +163,7 @@ namespace Blogifier.Tests.MongoDb
                 PostType = PostType.Post,
                 Categories = new System.Collections.Generic.List<Category> { category3 },
                 Blog = blog,
+                BlogId = blog.Id,
                 AuthorId = author.Id,
                 Author = author
             };
@@ -165,6 +179,7 @@ namespace Blogifier.Tests.MongoDb
                 PostType = PostType.Post,
                 Categories = new System.Collections.Generic.List<Category> { category2 },
                 Blog = blog,
+                BlogId = blog.Id,
                 AuthorId = author.Id,
                 Author = author
             };

@@ -45,6 +45,11 @@ namespace Blogifier.Core.Providers.MongoDb
             return await _blogCollection.Find(_ => true).SortBy(b => b.Id).FirstAsync();
         }
 
+        public async Task<Blog> TryGetBlog()
+        {
+            return await _blogCollection.Find(_ => true).SortBy(b => b.Id).FirstOrDefaultAsync();
+        }
+
         public async Task<List<Category>> GetBlogCategories()
         {
             return await _categoryProvider.GetCategoriesAsync();

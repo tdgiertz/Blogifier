@@ -88,7 +88,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 .Find(p => p.Id == postId)
                 .FirstOrDefaultAsync();
 
-            return post?.Categories;
+            return post?.Categories ?? new List<Category>();
         }
 
         public async Task<bool> SaveCategory(Category category)
@@ -120,6 +120,7 @@ namespace Blogifier.Core.Providers.MongoDb
 
             var category = new Category()
             {
+                Id = Guid.NewGuid(),
                 Content = tag,
                 DateCreated = DateTime.UtcNow
             };

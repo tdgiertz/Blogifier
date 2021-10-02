@@ -8,12 +8,11 @@ namespace Blogifier.Shared
     {
         public Post()
         {
-            Id = Guid.NewGuid();
         }
 
         public Guid Id { get; set; }
         public Guid AuthorId { get; set; }
-
+        public Guid BlogId { get; set; }
         public PostType PostType { get; set; }
 
         [Required]

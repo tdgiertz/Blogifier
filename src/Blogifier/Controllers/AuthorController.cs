@@ -45,7 +45,7 @@ namespace Blogifier.Controllers
 		}
 
 		[Authorize]
-		[HttpDelete("{id:int}")]
+		[HttpDelete("{id:Guid}")]
 		public async Task<ActionResult<bool>> RemoveAuthor(Guid id)
 		{
 			return await _authorProvider.Remove(id);
