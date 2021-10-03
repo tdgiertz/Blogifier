@@ -3,6 +3,7 @@ using Blogifier.Core.Providers.EfCore.Extensions;
 using Blogifier.Core.Providers.MongoDb.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,12 +17,6 @@ namespace Blogifier
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            Log.Logger = new LoggerConfiguration()
-                  .Enrich.FromLogContext()
-                  .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
-                  .CreateLogger();
-
-            Log.Warning("Application start");
         }
 
         public IConfiguration Configuration { get; }
@@ -30,6 +25,13 @@ namespace Blogifier
         {
             var section = Configuration.GetSection("Blogifier");
             Log.Warning("Start configure services");
+
+            services.AddDataProtection()
+                .PersistKeysToGoogleCloudStorage(
+                    Configuration["DataProtection:Bucket"],
+                    Configuration["DataProtection:Object"])
+                .ProtectKeysWithGoogleKms(
+                    Configuration["DataProtection:KmsKeyName"]);
 
             services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
 
@@ -71,6 +73,8 @@ namespace Blogifier
             {
                 app.UseExceptionHandler("/Error");
             }
+
+            app.UseSerilogRequestLogging();
 
             app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();

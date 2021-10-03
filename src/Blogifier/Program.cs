@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.GoogleCloudLogging;
+using System;
 using System.IO;
 using System.Linq;
 
@@ -14,6 +18,8 @@ namespace Blogifier
         public static void Main(string[] args)
         {
             var host = CreateHostBuilder(args).Build();
+
+            GoogleCloudLoggingSinkOptions config;
 
             using (var scope = host.Services.CreateScope())
             {
@@ -32,19 +38,41 @@ namespace Blogifier
                     }
                     catch { }
                 }
+
+                config = new GoogleCloudLoggingSinkOptions { ProjectId = section.GetValue<string>("GcpProjectName"), UseJsonOutput = true };
             }
 
-            host.Run();
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                .Enrich.FromLogContext()
+                .WriteTo.GoogleCloudLogging(config)
+                .CreateLogger();
+
+            try
+            {
+                Log.Information("Starting web host");
+                host.Run();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
              Host.CreateDefaultBuilder(args)
-                  .ConfigureWebHostDefaults(webBuilder =>
-                  {
-                      webBuilder
-                      .UseContentRoot(Directory.GetCurrentDirectory())
-                      .UseIISIntegration()
-                      .UseStartup<Startup>();
-                  });
+                .UseSerilog()
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder
+                    .UseContentRoot(Directory.GetCurrentDirectory())
+                    .UseIISIntegration()
+                    .UseStartup<Startup>();
+                });
     }
 }
