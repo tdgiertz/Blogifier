@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -55,13 +56,14 @@ namespace Blogifier.Tests.MongoDb
 
             var originalCategories = new List<Category>
             {
-                new Category { Content = "Original One", Description = "Original One" },
-                new Category { Content = "Original Two", Description = "Original Two" },
-                new Category { Content = "Original Three", Description = "Original Three" }
+                new Category { Id = Guid.NewGuid(), Content = "Original One", Description = "Original One" },
+                new Category { Id = Guid.NewGuid(), Content = "Original Two", Description = "Original Two" },
+                new Category { Id = Guid.NewGuid(), Content = "Original Three", Description = "Original Three" }
             };
 
             var newPost = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Nothing",
                 Slug = "Nothing",
                 Description = "Nothing",
@@ -91,9 +93,9 @@ namespace Blogifier.Tests.MongoDb
 
             var originalCategories = new List<Category>
             {
-                new Category { Content = "Original One", Description = "Original One" },
-                new Category { Content = "Original Two", Description = "Original Two" },
-                new Category { Content = "Original Three", Description = "Original Three" }
+                new Category { Id = Guid.NewGuid(), Content = "Original One", Description = "Original One" },
+                new Category { Id = Guid.NewGuid(), Content = "Original Two", Description = "Original Two" },
+                new Category { Id = Guid.NewGuid(), Content = "Original Three", Description = "Original Three" }
             };
 
             var newPost = new Post
@@ -109,9 +111,9 @@ namespace Blogifier.Tests.MongoDb
 
             var newCategories = new List<Category>
             {
-                new Category { Content = "New One", Description = "New One" },
-                new Category { Content = "New Two", Description = "New Two" },
-                new Category { Content = "New Three", Description = "New Three" }
+                new Category { Id = Guid.NewGuid(), Content = "New One", Description = "New One" },
+                new Category { Id = Guid.NewGuid(), Content = "New Two", Description = "New Two" },
+                new Category { Id = Guid.NewGuid(), Content = "New Three", Description = "New Three" }
             };
 
             var hasAdded = await provider.SavePostCategories(newPost.Id, newCategories);
@@ -136,13 +138,14 @@ namespace Blogifier.Tests.MongoDb
 
             var categories = new List<Category>
             {
-                new Category { Content = "One", Description = "One" },
-                new Category { Content = "Two", Description = "Two" },
-                new Category { Content = "Three", Description = "Three" }
+                new Category { Id = Guid.NewGuid(), Content = "One", Description = "One" },
+                new Category { Id = Guid.NewGuid(), Content = "Two", Description = "Two" },
+                new Category { Id = Guid.NewGuid(), Content = "Three", Description = "Three" }
             };
 
             var newPost1 = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Nothing",
                 Slug = "Nothing",
                 Description = "Nothing",
@@ -152,6 +155,7 @@ namespace Blogifier.Tests.MongoDb
 
             var newPost2 = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Nothing",
                 Slug = "Nothing",
                 Description = "Nothing",
@@ -163,8 +167,11 @@ namespace Blogifier.Tests.MongoDb
 
             var post1 = _postCollection.Find(p => p.Id == newPost1.Id).FirstOrDefault();
             Assert.NotNull(post1);
+            Assert.Equal(3, post1.Categories?.Count());
+
             var post2 = _postCollection.Find(p => p.Id == newPost2.Id).FirstOrDefault();
             Assert.NotNull(post2);
+            Assert.Equal(3, post2.Categories?.Count());
 
             var hasDeleted = await provider.RemoveCategory(categories.First().Id);
 

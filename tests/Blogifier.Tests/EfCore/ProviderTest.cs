@@ -34,6 +34,7 @@ namespace Blogifier.Tests.EfCore
 
                 var category1 = new Category
                 {
+                    Id = Guid.NewGuid(),
                     Content = "Category 1",
                     Description = "Category 1 Description",
                     DateCreated = DateTime.Now
@@ -43,6 +44,7 @@ namespace Blogifier.Tests.EfCore
 
                 var category2 = new Category
                 {
+                    Id = Guid.NewGuid(),
                     Content = "Category 2",
                     Description = "Category 2 Description",
                     DateCreated = DateTime.Now
@@ -52,6 +54,7 @@ namespace Blogifier.Tests.EfCore
 
                 var category3 = new Category
                 {
+                    Id = Guid.NewGuid(),
                     Content = "Category 3",
                     Description = "Category 3 Description",
                     DateCreated = DateTime.Now
@@ -65,11 +68,13 @@ namespace Blogifier.Tests.EfCore
 
                 var blog = new Blog
                 {
+                    Id = Guid.NewGuid(),
                     Title = "Test Blog",
                 };
 
                 var author = new Author
                 {
+                    Id = Guid.NewGuid(),
                     Email = "tester@test.com",
                     Password = "np-pass",
                     DisplayName = "Tester Person",
@@ -86,6 +91,7 @@ namespace Blogifier.Tests.EfCore
 
                 var post1 = new Post
                 {
+                    Id = Guid.NewGuid(),
                     Title = "Post 1",
                     Slug = "Post 1 Slug",
                     Description = "Post 1 Description",
@@ -100,6 +106,7 @@ namespace Blogifier.Tests.EfCore
 
                 var post2 = new Post
                 {
+                    Id = Guid.NewGuid(),
                     Title = "Post 2",
                     Slug = "Post 12 Slug",
                     Description = "Post 2 Description",
@@ -114,6 +121,7 @@ namespace Blogifier.Tests.EfCore
 
                 var post3 = new Post
                 {
+                    Id = Guid.NewGuid(),
                     Title = "Post 3",
                     Slug = "Post 3 Slug",
                     Description = "Post 3 Description",
@@ -128,6 +136,7 @@ namespace Blogifier.Tests.EfCore
 
                 var post4 = new Post
                 {
+                    Id = Guid.NewGuid(),
                     Title = "Post 4",
                     Slug = "Post 4 Slug",
                     Description = "Post 4 Description",

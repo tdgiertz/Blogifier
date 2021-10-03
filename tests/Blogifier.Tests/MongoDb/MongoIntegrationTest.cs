@@ -35,10 +35,13 @@ namespace Blogifier.Tests.MongoDb
 
         protected Guid _authorId;
 
-        public MongoIntegrationTest()
+        static MongoIntegrationTest()
         {
             BsonClassMappings.Register();
+        }
 
+        public MongoIntegrationTest()
+        {
             _runner = MongoDbRunner.Start(singleNodeReplSet: true);
 
             var settings = MongoClientSettings.FromConnectionString(_runner.ConnectionString);
@@ -76,6 +79,7 @@ namespace Blogifier.Tests.MongoDb
         {
             var category1 = new Category
             {
+                Id = Guid.NewGuid(),
                 Content = "Category 1 test",
                 Description = "Category 1 Description",
                 DateCreated = DateTime.Now
@@ -85,6 +89,7 @@ namespace Blogifier.Tests.MongoDb
 
             var category2 = new Category
             {
+                Id = Guid.NewGuid(),
                 Content = "Category 2",
                 Description = "Category 2 Description",
                 DateCreated = DateTime.Now
@@ -94,6 +99,7 @@ namespace Blogifier.Tests.MongoDb
 
             var category3 = new Category
             {
+                Id = Guid.NewGuid(),
                 Content = "Category 3",
                 Description = "Category 3 Description",
                 DateCreated = DateTime.Now
@@ -103,6 +109,7 @@ namespace Blogifier.Tests.MongoDb
 
             var blog = new MongoBlog
             {
+                Id = Guid.NewGuid(),
                 Title = "Test Blog",
             };
 
@@ -110,6 +117,7 @@ namespace Blogifier.Tests.MongoDb
 
             var author = new Author
             {
+                Id = Guid.NewGuid(),
                 Email = "tester@test.com",
                 Password = "np-pass",
                 DisplayName = "Tester Person",
@@ -124,6 +132,7 @@ namespace Blogifier.Tests.MongoDb
 
             var post1 = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Post 1",
                 Slug = "Post 1 Slug",
                 Description = "Post 1 Description",
@@ -140,6 +149,7 @@ namespace Blogifier.Tests.MongoDb
 
             var post2 = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Post 2",
                 Slug = "Post 12 Slug",
                 Description = "Post 2 Description",
@@ -156,6 +166,7 @@ namespace Blogifier.Tests.MongoDb
 
             var post3 = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Post 3 Test",
                 Slug = "Post 3 Slug",
                 Description = "Post 3 Description",
@@ -172,6 +183,7 @@ namespace Blogifier.Tests.MongoDb
 
             var post4 = new Post
             {
+                Id = Guid.NewGuid(),
                 Title = "Post 4",
                 Slug = "Post 4 Slug",
                 Description = "Post 4 Description",
