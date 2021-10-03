@@ -61,16 +61,17 @@ namespace Blogifier.Core.Providers.MongoDb
 
         private async Task<bool> SaveNewsletter(Guid postId, bool success)
         {
-            var existing = await _newsletterCollection.Find(n => n.PostId == postId).FirstOrDefaultAsync();
+            var existingCount = await _newsletterCollection.Find(n => n.PostId == postId).CountDocumentsAsync();
 
             var isSuccessful = true;
 
-            if (existing != null)
+            if (existingCount != 0)
             {
-                existing.DateUpdated = DateTime.UtcNow;
-                existing.Success = success;
+                var updateDefinition = Builders<Newsletter>.Update
+                    .Set(n => n.DateUpdated, DateTime.UtcNow)
+                    .Set(n => n.Success, success);
 
-                var result = await _newsletterCollection.ReplaceOneAsync(_ => true, existing);
+                var result = await _newsletterCollection.UpdateOneAsync(n => n.PostId == postId, updateDefinition);
 
                 isSuccessful = result.IsAcknowledged;
             }
@@ -171,7 +172,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 existing.ToName = mail.ToName;
                 existing.Enabled = mail.Enabled;
 
-                var result = await _mailSettingCollection.ReplaceOneAsync(_ => true, existing);
+                var result = await _mailSettingCollection.ReplaceOneAsync(m => m.Id == existing.Id, existing);
 
                 isSuccessful = result.IsAcknowledged && result.ModifiedCount > 0;
             }

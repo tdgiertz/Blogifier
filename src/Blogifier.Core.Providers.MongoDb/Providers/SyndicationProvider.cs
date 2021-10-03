@@ -83,10 +83,12 @@ namespace Blogifier.Core.Providers.MongoDb
 					return false;
 				}
 
-				savedPost.Blog = await _blogProvider.GetBlog();
-                savedPost.BlogId = savedPost.Blog.Id;
+				var blog = await _blogProvider.GetBlog();
+                var updateDefinition = Builders<Post>.Update
+                    .Set(p => p.Blog, blog)
+                    .Set(p => p.BlogId, blog.Id);
 
-                var result = await _postCollection.ReplaceOneAsync(p => p.Id == post.Id, savedPost);
+                var result = await _postCollection.UpdateOneAsync(p => p.Id == post.Id, updateDefinition);
 
                 return result.IsAcknowledged && result.ModifiedCount > 0;
 			}

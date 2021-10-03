@@ -147,20 +147,20 @@ namespace Blogifier.Core.Providers.MongoDb
 
             var all = _postCollection
                 .Find(_ => true)
-               .SortByDescending(p => p.IsFeatured)
-               .ThenByDescending(p => p.Published).ToList();
+                .SortByDescending(p => p.IsFeatured)
+                .ThenByDescending(p => p.Published).ToList();
 
             await SetOlderNewerPosts(slug, model, all);
 
-            var post = await _postCollection.Find(p => p.Slug == slug).SingleAsync();
-            post.PostViews++;
+            var updateDefinition = Builders<Post>.Update
+                .Inc(p => p.PostViews, 1);
 
-            var result = _postCollection.ReplaceOneAsync(_ => true, post);
+            var result = _postCollection.UpdateOneAsync(p => p.Slug == slug, updateDefinition);
 
             model.Related = await Search(new Pager(1), model.Post.Title, default(Guid), "PF", true);
             model.Related = model.Related.Where(r => r.Id != model.Post.Id).ToList();
 
-            return await Task.FromResult(model);
+            return model;
         }
 
         private async Task SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
@@ -203,11 +203,11 @@ namespace Blogifier.Core.Providers.MongoDb
                     var checkPost = await GetPostBySlug(slug);
                     if (checkPost == null)
                     {
-                        return await Task.FromResult(slug);
+                        return slug;
                     }
                 }
             }
-            return await Task.FromResult(slug);
+            return slug;
         }
 
         public async Task<bool> Add(Post post)
@@ -231,47 +231,38 @@ namespace Blogifier.Core.Providers.MongoDb
 
         public async Task<bool> Update(Post post)
         {
-            var existing = await GetPostBySlug(post.Slug);
-            if (existing == null)
-                return false;
+            var updateDefinition = Builders<Post>.Update
+                .Set(p => p.Slug, post.Slug)
+                .Set(p => p.Title, post.Title)
+                .Set(p => p.Description, post.Description.RemoveScriptTags())
+                .Set(p => p.Content, post.Content.RemoveScriptTags())
+                .Set(p => p.Cover, post.Cover)
+                .Set(p => p.PostType, post.PostType)
+                .Set(p => p.Published, post.Published);
 
-            existing.Slug = post.Slug;
-            existing.Title = post.Title;
-            existing.Description = post.Description.RemoveScriptTags();
-            existing.Content = post.Content.RemoveScriptTags();
-            existing.Cover = post.Cover;
-            existing.PostType = post.PostType;
-            existing.Published = post.Published;
+            var result = await _postCollection.UpdateOneAsync(p => p.Slug == post.Slug, updateDefinition);
 
-            var result = await _postCollection.ReplaceOneAsync(_ => true, existing);
-
-            return result.IsAcknowledged && result.MatchedCount > 0;
+            return result.IsAcknowledged && result.ModifiedCount > 0;
         }
 
         public async Task<bool> Publish(Guid id, bool publish)
         {
-            var existing = await _postCollection.Find(p => p.Id == id).FirstOrDefaultAsync();
-            if (existing == null)
-                return false;
+            var updateDefinition = Builders<Post>.Update
+                .Set(p => p.Published, publish ? DateTime.UtcNow : DateTime.MinValue);
 
-            existing.Published = publish ? DateTime.UtcNow : DateTime.MinValue;
+            var result = await _postCollection.UpdateOneAsync(p => p.Id == id, updateDefinition);
 
-            var result = await _postCollection.ReplaceOneAsync(_ => true, existing);
-
-            return result.IsAcknowledged && result.MatchedCount > 0;
+            return result.IsAcknowledged && result.ModifiedCount > 0;
         }
 
         public async Task<bool> Featured(Guid id, bool featured)
         {
-            var existing = await _postCollection.Find(p => p.Id == id).FirstOrDefaultAsync();
-            if (existing == null)
-                return false;
+            var updateDefinition = Builders<Post>.Update
+                .Set(p => p.IsFeatured, featured);
 
-            existing.IsFeatured = featured;
+            var result = await _postCollection.UpdateOneAsync(p => p.Id == id, updateDefinition);
 
-            var result = await _postCollection.ReplaceOneAsync(_ => true, existing);
-
-            return result.IsAcknowledged && result.MatchedCount > 0;
+            return result.IsAcknowledged && result.ModifiedCount > 0;
         }
 
         public async Task<IEnumerable<PostItem>> GetList(Pager pager, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)

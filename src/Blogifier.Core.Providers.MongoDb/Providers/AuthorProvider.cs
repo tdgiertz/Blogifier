@@ -146,48 +146,50 @@ namespace Blogifier.Core.Providers.MongoDb
 
 		public async Task<bool> Update(Author author)
 		{
-			var existing = await _authorCollection
+			var existingCount = await _authorCollection
 				.Find(a => a.Email == author.Email)
-				.FirstOrDefaultAsync();
+				.CountDocumentsAsync();
 
-			if (existing == null)
+			if (existingCount == 0)
             {
 				return false;
             }
 
-            if(existing.IsAdmin && !author.IsAdmin)
+            if(!author.IsAdmin)
             {
-                // do not remove last admin account
-                var adminCount = await _authorCollection.Find(a => a.IsAdmin).CountDocumentsAsync();
-                if (adminCount == 1)
+                var adminCount = await _authorCollection.Find(a => a.Email == author.Email && a.IsAdmin).CountDocumentsAsync();
+                if (adminCount > 0)
+                {
                     return false;
+                }
             }
 
-			existing.Email = author.Email;
-			existing.DisplayName = author.DisplayName;
-			existing.Bio = author.Bio;
-			existing.Avatar = author.Avatar;
-            existing.IsAdmin = author.IsAdmin;
+            var updateDefinition = Builders<Author>.Update
+                .Set(a => a.DisplayName, author.DisplayName)
+                .Set(a => a.Bio, author.Bio)
+                .Set(a => a.Avatar, author.Avatar)
+                .Set(a => a.IsAdmin, author.IsAdmin);
 
-            var result = await _authorCollection.ReplaceOneAsync(_ => true, existing);
+            var result = await _authorCollection.UpdateOneAsync(a => a.Email == author.Email, updateDefinition);
 
 			return result.IsAcknowledged && result.ModifiedCount > 0;
 		}
 
 		public async Task<bool> ChangePassword(RegisterModel model)
 		{
-			var existing = await _authorCollection
+			var existingCount = await _authorCollection
 				.Find(a => a.Email == model.Email)
-				.FirstOrDefaultAsync();
+				.CountDocumentsAsync();
 
-			if (existing == null)
+			if (existingCount == 0)
             {
 				return false;
             }
 
-			existing.Password = model.Password.Hash(_salt);
+            var updateDefinition = Builders<Author>.Update
+                .Set(a => a.Password, model.Password.Hash(_salt));
 
-            var result = await _authorCollection.ReplaceOneAsync(_ => true, existing);
+            var result = await _authorCollection.UpdateOneAsync(a => a.Email == model.Email, updateDefinition);
 
 			return result.IsAcknowledged && result.ModifiedCount > 0;
 		}

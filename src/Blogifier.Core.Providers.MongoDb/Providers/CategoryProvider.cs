@@ -141,13 +141,10 @@ namespace Blogifier.Core.Providers.MongoDb
 
         public async Task<bool> SavePostCategories(Guid postId, List<Category> categories)
         {
-            var post = await _postCollection
-                .Find(p => p.Id == postId)
-                .FirstOrDefaultAsync();
+            var updateDefinition = Builders<Post>.Update
+                .Set(p => p.Categories, categories);
 
-            post.Categories = categories;
-
-            var result = await _postCollection.ReplaceOneAsync(p => p.Id == postId, post);
+            var result = await _postCollection.UpdateOneAsync(p => p.Id == postId, updateDefinition);
 
             return result.IsAcknowledged && result.ModifiedCount > 0;
         }
@@ -155,9 +152,9 @@ namespace Blogifier.Core.Providers.MongoDb
         public async Task<bool> RemoveCategory(Guid categoryId)
         {
             var filter = Builders<Post>.Filter.ElemMatch(p => p.Categories, c => c.Id == categoryId);
-            var update = Builders<Post>.Update.PullFilter(p => p.Categories, c => c.Id == categoryId);
+            var updateDefinition = Builders<Post>.Update.PullFilter(p => p.Categories, c => c.Id == categoryId);
 
-            var result = await _postCollection.UpdateManyAsync(filter, update);
+            var result = await _postCollection.UpdateManyAsync(filter, updateDefinition);
 
             return result.IsAcknowledged && result.ModifiedCount > 0;
         }

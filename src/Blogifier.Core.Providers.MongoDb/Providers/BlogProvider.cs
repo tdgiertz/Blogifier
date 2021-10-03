@@ -71,7 +71,7 @@ namespace Blogifier.Core.Providers.MongoDb
             existing.AnalyticsListType = blog.AnalyticsListType;
             existing.AnalyticsPeriod = blog.AnalyticsPeriod;
 
-            var result = await _blogCollection.ReplaceOneAsync(_ => true, existing);
+            var result = await _blogCollection.ReplaceOneAsync(b => b.Id == existing.Id, existing);
 
             return result.IsAcknowledged;
         }
