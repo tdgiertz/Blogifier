@@ -17,8 +17,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Blogifier.Shared\Blogifier.Shared.csproj" />
 		<ProjectReference Include="..\Blogifier.Core\Blogifier.Core.csproj" />
+		<ProjectReference Include="..\Blogifier.Files\Blogifier.Files.csproj" />
+		<ProjectReference Include="..\Blogifier.Shared\Blogifier.Shared.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
 	</ItemGroup>

@@ -19,6 +19,7 @@ namespace Blogifier.Core.Data
         public DbSet<Subscriber> Subscribers { get; set; }
         public DbSet<Newsletter> Newsletters { get; set; }
         public DbSet<MailSetting> MailSettings { get; set; }
+        public DbSet<FileDescriptor> FileDescriptors { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,6 +64,9 @@ namespace Blogifier.Core.Data
             modelBuilder.Entity<MailSetting>().Property(n => n.DateUpdated).HasDefaultValueSql(sql);
             modelBuilder.Entity<MailSetting>().Property(p => p.Id).ValueGeneratedNever();
             modelBuilder.Entity<MailSetting>().ToTable("MailSetting");
+            modelBuilder.Entity<FileDescriptor>().Property(n => n.DateUpdated).HasDefaultValueSql(sql);
+            modelBuilder.Entity<FileDescriptor>().Property(p => p.Id).ValueGeneratedNever();
+            modelBuilder.Entity<FileDescriptor>().ToTable("FileDescriptor");
         }
     }
 }

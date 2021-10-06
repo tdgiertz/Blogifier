@@ -1,0 +1,129 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using Blogifier.Files.Models;
+using Blogifier.Files.Providers;
+using Blogifier.Shared;
+using Google;
+using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Storage.V1;
+using Microsoft.AspNetCore.Http;
+using MimeMapping;
+using Serilog;
+
+namespace Blogifier.Files.Google
+{
+    public class GoogleFileStoreProvider : IFileStoreProvider
+    {
+        private readonly FileStoreConfiguration _configuration;
+        private readonly StorageClient _storageClient;
+
+        public GoogleFileStoreProvider(FileStoreConfiguration configuration)
+        {
+            if(string.IsNullOrEmpty(configuration.BasePath))
+            {
+                throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.BasePath)}");
+            }
+            if(string.IsNullOrEmpty(configuration.StoreName))
+            {
+                throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
+            }
+            if(string.IsNullOrEmpty(configuration.ThumbnailBasePath))
+            {
+                configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
+            }
+
+            GoogleCredential? googleCredential = null;
+
+            if (configuration.AuthenticationKeySource == KeySource.File || configuration.AuthenticationKeySource == KeySource.String)
+            {
+                if(string.IsNullOrEmpty(configuration.AuthenticationKey))
+                {
+                    throw new System.ArgumentException($"Parameter value is required based on current value of {nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.AuthenticationKeySource)}",
+                        $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.AuthenticationKey)}");
+                }
+
+                googleCredential = configuration.AuthenticationKeySource == KeySource.File
+                    ? GoogleCredential.FromFile(configuration.AuthenticationKey)
+                    : GoogleCredential.FromJson(configuration.AuthenticationKey);
+            }
+
+            _storageClient = StorageClient.Create(googleCredential);
+
+            _configuration = configuration;
+        }
+
+        public async Task<bool> ExistsAsync(string objectName)
+        {
+            try
+            {
+                await _storageClient.GetObjectAsync(_configuration.StoreName, objectName);
+
+                return false;
+            }
+            catch (GoogleApiException ex)
+            {
+                if(ex.Error.Code == 404)
+                {
+                    return true;
+                }
+
+                throw;
+            }
+        }
+
+        public async Task<FileResult> CreateAsync(IFormFile formFile)
+        {
+            var filename = Path.GetFileName(formFile.FileName);
+            var mimeType = MimeUtility.GetMimeMapping(filename);
+
+            using var stream = new MemoryStream();
+            await formFile.OpenReadStream().CopyToAsync(stream);
+
+            var uploadOptions = new UploadObjectOptions
+            {
+                PredefinedAcl = PredefinedObjectAcl.PublicRead
+            };
+
+            var result = await _storageClient.UploadObjectAsync(_configuration.StoreName, filename, mimeType, stream, uploadOptions);
+
+            return new FileResult
+            {
+                Url = $"http(s)://storage.googleapis.com/{_configuration.StoreName}/{result.Name}",
+                Filename = filename,
+                Path = result.Name,
+                MimeType = mimeType
+            };
+        }
+
+        public async Task<bool> DeleteAsync(string objectName)
+        {
+            try
+            {
+                await _storageClient.DeleteObjectAsync(_configuration.StoreName, objectName);
+                return true;
+            }
+            catch(Exception ex)
+            {
+                Log.Error(ex, "Google DeleteObjectAsync failed");
+                return false;
+            }
+        }
+
+        public async IAsyncEnumerable<FileResult> ListAsync()
+        {
+            await foreach (var item in _storageClient.ListObjectsAsync(_configuration.StoreName))
+            {
+                var filename = Path.GetFileName(item.Name);
+                yield return new FileResult
+                {
+                    Url = $"https://storage.googleapis.com/{_configuration.StoreName}/{item.Name}",
+                    Filename = filename,
+                    Path = item.Name,
+                    MimeType = item.ContentType
+                };
+            }
+        }
+    }
+}

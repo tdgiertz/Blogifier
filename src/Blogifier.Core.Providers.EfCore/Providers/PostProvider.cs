@@ -54,7 +54,6 @@ namespace Blogifier.Core.Providers.EfCore
 		public async Task<IEnumerable<PostItem>> Search(Pager pager, string term, Guid author = default(Guid), string include = "", bool sanitize = false)
 		{
             term = term.ToLower();
-            var skip = pager.CurrentPage * pager.ItemsPerPage - pager.ItemsPerPage;
 
 			var results = new List<SearchResult>();
 			var termList = term.ToLower().Split(' ').ToList();
@@ -106,7 +105,7 @@ namespace Blogifier.Core.Providers.EfCore
 				posts.Add(results[i].Item);
 			}
 			pager.Configure(posts.Count);
-			return await Task.Run(() => posts.Skip(skip).Take(pager.ItemsPerPage).ToList());
+			return await Task.Run(() => posts.Skip(pager.Skip).Take(pager.ItemsPerPage).ToList());
 		}
 
 		public async Task<Post> GetPostById(Guid id)
@@ -264,8 +263,6 @@ namespace Blogifier.Core.Providers.EfCore
 
 		public async Task<IEnumerable<PostItem>> GetList(Pager pager, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
 		{
-			var skip = pager.CurrentPage * pager.ItemsPerPage - pager.ItemsPerPage;
-
 			var posts = new List<Post>();
 			foreach (var p in GetPosts(include, author))
 			{
@@ -295,7 +292,7 @@ namespace Blogifier.Core.Providers.EfCore
 			pager.Configure(posts.Count);
 
 			var items = new List<PostItem>();
-			foreach (var p in posts.Skip(skip).Take(pager.ItemsPerPage).ToList())
+			foreach (var p in posts.Skip(pager.Skip).Take(pager.ItemsPerPage).ToList())
 			{
 				items.Add(await PostToItem(p, sanitize));
 			}
@@ -309,8 +306,6 @@ namespace Blogifier.Core.Providers.EfCore
 
 		public async Task<IEnumerable<PostItem>> GetPopular(Pager pager, Guid author = default(Guid))
 		{
-			var skip = pager.CurrentPage * pager.ItemsPerPage - pager.ItemsPerPage;
-
 			var posts = new List<Post>();
 
 			if (author != default(Guid))
@@ -323,7 +318,7 @@ namespace Blogifier.Core.Providers.EfCore
 			pager.Configure(posts.Count);
 
 			var items = new List<PostItem>();
-			foreach (var p in posts.Skip(skip).Take(pager.ItemsPerPage).ToList())
+			foreach (var p in posts.Skip(pager.Skip).Take(pager.ItemsPerPage).ToList())
 			{
 				items.Add(await PostToItem(p, true));
 			}
