@@ -1,5 +1,6 @@
 using Blogifier.Core.Extensions;
 using Blogifier.Core.Providers.MongoDb.Extensions;
+using Blogifier.Core.Providers.MongoDb.Models;
 using Blogifier.Shared;
 using Blogifier.Shared.Extensions;
 using MongoDB.Bson;
@@ -16,16 +17,16 @@ namespace Blogifier.Core.Providers.MongoDb
     public class PostProvider : IPostProvider
     {
         private readonly IMongoCollection<Post> _postCollection;
+        private readonly IMongoCollection<Author> _authorCollection;
         private readonly ICategoryProvider _categoryProvider;
         private readonly IBlogProvider _blogProvider;
-        private readonly IAuthorProvider _authorProvider;
 
         public PostProvider(IMongoDatabase db, ICategoryProvider categoryProvider, IBlogProvider blogProvider, IAuthorProvider authorProvider)
         {
             _postCollection = db.GetNamedCollection<Post>();
+            _authorCollection = db.GetNamedCollection<Author>();
             _categoryProvider = categoryProvider;
             _blogProvider = blogProvider;
-            _authorProvider = authorProvider;
         }
 
         public async Task<List<Post>> GetPosts(PublishedStatus filter, PostType postType)
@@ -54,16 +55,19 @@ namespace Blogifier.Core.Providers.MongoDb
         public async Task<List<Post>> SearchPosts(string term)
         {
             if (term == "*")
+            {
                 return await _postCollection.Find(_ => true).ToListAsync();
-
-            return await _postCollection
-                .Find(p => p.Title.ToLower().Contains(term.ToLower()))
-                .ToListAsync();
+            }
+            else
+            {
+                return await _postCollection
+                    .Find(p => p.Title.ToLower().Contains(term.ToLower()))
+                    .ToListAsync();
+            }
         }
 
-        public async Task<IEnumerable<PostItem>> Search(Pager pager, string term, Guid author = default(Guid), string include = "", bool sanitize = false)
+        public async Task<IEnumerable<PostItem>> Search(PagingDescriptor pagingDescriptor, string term, Guid author = default(Guid), string include = "", bool sanitize = false)
         {
-            var skip = (pager.CurrentPage - 1) * pager.ItemsPerPage;
             term = term.ToLower();
 
             var results = new List<SearchResult>();
@@ -102,13 +106,13 @@ namespace Blogifier.Core.Providers.MongoDb
                 }
                 if (rank > 0)
                 {
-                    results.Add(new SearchResult { Rank = rank, Item = await PostToItem(p, sanitize) });
+                    results.Add(new SearchResult { Rank = rank, Item = PostToItem(p, sanitize) });
                 }
             }
 
-            pager.Configure(results.Count);
+            pagingDescriptor.SetTotalCount(results.Count);
 
-            return results.OrderByDescending(r => r.Rank).Skip(skip).Take(pager.ItemsPerPage).Select(r => r.Item).ToList();
+            return results.OrderByDescending(r => r.Rank).Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).Select(r => r.Item).ToList();
         }
 
         public async Task<Post> GetPostById(Guid id)
@@ -150,20 +154,20 @@ namespace Blogifier.Core.Providers.MongoDb
                 .SortByDescending(p => p.IsFeatured)
                 .ThenByDescending(p => p.Published).ToList();
 
-            await SetOlderNewerPosts(slug, model, all);
+            SetOlderNewerPosts(slug, model, all);
 
             var updateDefinition = Builders<Post>.Update
                 .Inc(p => p.PostViews, 1);
 
             var result = _postCollection.UpdateOneAsync(p => p.Slug == slug, updateDefinition);
 
-            model.Related = await Search(new Pager(1), model.Post.Title, default(Guid), "PF", true);
+            model.Related = await Search(new PagingDescriptor(1), model.Post.Title, default(Guid), "PF", true);
             model.Related = model.Related.Where(r => r.Id != model.Post.Id).ToList();
 
             return model;
         }
 
-        private async Task SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
+        private void SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
         {
             if (all != null && all.Count > 0)
             {
@@ -171,13 +175,13 @@ namespace Blogifier.Core.Providers.MongoDb
                 {
                     if (all[i].Slug == slug)
                     {
-                        model.Post = await PostToItem(all[i]);
+                        model.Post = PostToItem(all[i]);
 
                         if (i > 0 && all[i - 1].Published > DateTime.MinValue)
-                            model.Newer = await PostToItem(all[i - 1]);
+                            model.Newer = PostToItem(all[i - 1]);
 
                         if (i + 1 < all.Count && all[i + 1].Published > DateTime.MinValue)
-                            model.Older = await PostToItem(all[i + 1]);
+                            model.Older = PostToItem(all[i + 1]);
 
                         break;
                     }
@@ -224,7 +228,7 @@ namespace Blogifier.Core.Providers.MongoDb
             post.Content = post.Content.RemoveScriptTags();
             post.Description = post.Description.RemoveScriptTags();
 
-            await _postCollection.InsertOneAsync(post);
+            await _postCollection.InsertOneAsync((Post)post);
 
             return true;
         }
@@ -265,45 +269,41 @@ namespace Blogifier.Core.Providers.MongoDb
             return result.IsAcknowledged && result.ModifiedCount > 0;
         }
 
-        public async Task<IEnumerable<PostItem>> GetList(Pager pager, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
+        public async Task<IEnumerable<PostItem>> GetList(PagingDescriptor pagingDescriptor, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
         {
-            var posts = await GetPagedPosts(pager, include, author, category);
+            var posts = await GetPagedPostsAsync(pagingDescriptor, include, author, category);
 
-            return await PostToPostItemsAsync(posts);
+            return PostToPostItems(posts);
         }
 
         private async Task<List<Post>> GetPostsCategoryContentAsync(string content)
         {
             var filter = Builders<Post>.Filter.Regex($"{nameof(Category.Content)}", new BsonRegularExpression(content, "i"));
-            var categories = await _postCollection.Find(filter).ToListAsync();
-
-            return categories;
+            return await _postCollection.Find(filter).ToListAsync();
         }
 
-        public async Task<IEnumerable<PostItem>> GetPopular(Pager pager, Guid author = default(Guid))
+        public async Task<IEnumerable<PostItem>> GetPopular(PagingDescriptor pagingDescriptor, Guid author = default(Guid))
         {
             var builder = Builders<Post>.Filter;
             var filter = author != default(Guid)
                     ? builder.And(builder.Gt(p => p.Published, DateTime.MinValue), builder.Eq(p => p.AuthorId, author))
                     : builder.And(builder.Gt(p => p.Published, DateTime.MinValue));
 
-            var posts = await GetPagedAsync(_postCollection, pager, filter, new[] { new Models.SortDefinition<Post> { IsDescending = true, Sort = p => p.Published } });
+            var posts = await _postCollection.GetPagedAsync(pagingDescriptor, filter, new[] { new Models.SortDefinition<LookupPost> { IsDescending = true, Sort = p => p.Published } }, aggregateFluent =>
+            {
+                var aggregate = aggregateFluent
+                    .Lookup(_authorCollection, p => p.AuthorId, a => a.Id, (Models.PostAuthorAggregate paa) => paa.Author)
+                    .Unwind<PostAuthorAggregate, LookupPost>(p => p.Author);
 
-            return await PostToPostItemsAsync(posts);
+                return aggregate;
+            }, lookupPosts => lookupPosts?.Select(lp => lp.ToPost())?.ToList());
+
+            return PostToPostItems(posts);
         }
 
-        private async Task<IEnumerable<PostItem>> PostToPostItemsAsync(IEnumerable<Post> posts)
+        private IEnumerable<PostItem> PostToPostItems(IEnumerable<Post> posts)
         {
-            var itemTasks = posts.Select(p => PostToItem(p));
-
-            var items = new List<PostItem>();
-
-            foreach(var itemTask in itemTasks)
-            {
-                items.Add(await itemTask);
-            }
-
-            return items;
+            return posts.Select(p => PostToItem(p));
         }
 
         public async Task<bool> Remove(Guid id)
@@ -315,10 +315,8 @@ namespace Blogifier.Core.Providers.MongoDb
 
         #region Private methods
 
-        private async Task<PostItem> PostToItem(Post p, bool sanitize = false)
+        private PostItem PostToItem(Post p, bool sanitize = false)
         {
-            var author = await _authorProvider.GetAuthorAsync(p.AuthorId);
-
             var post = new PostItem
             {
                 Id = p.Id,
@@ -333,7 +331,7 @@ namespace Blogifier.Core.Providers.MongoDb
                 Rating = p.Rating,
                 Published = p.Published,
                 Featured = p.IsFeatured,
-                Author = author,
+                Author = p.Author,
                 SocialFields = new List<SocialField>()
             };
 
@@ -426,7 +424,7 @@ namespace Blogifier.Core.Providers.MongoDb
             return definition;
         }
 
-        private async Task<List<Post>> GetPagedPosts(Pager pager, string include, Guid author, string category = "")
+        private async Task<List<Post>> GetPagedPostsAsync(PagingDescriptor pagingDescriptor, string include, Guid author, string category = "")
         {
             FilterDefinition<Post> postDraftFilter = null;
             FilterDefinition<Post> postFeaturedFilter = null;
@@ -476,81 +474,51 @@ namespace Blogifier.Core.Providers.MongoDb
                 }
             }
 
-            return await GetPagedAsync(_postCollection, pager, filter, new[] { new Models.SortDefinition<Post> { IsDescending = true, Sort = p => p.Published } });
+            return await _postCollection.GetPagedAsync(pagingDescriptor, filter, new[] { new Models.SortDefinition<LookupPost> { IsDescending = true, Sort = p => p.Published } }, aggregateFluent =>
+            {
+                var aggregate = aggregateFluent
+                    .Lookup(_authorCollection, p => p.AuthorId, a => a.Id, (Models.PostAuthorAggregate paa) => paa.Author)
+                    .Unwind<PostAuthorAggregate, LookupPost>(p => p.Author);
+
+                return aggregate;
+            }, lookupPosts => lookupPosts?.Select(lp => lp.ToPost())?.ToList());
         }
 
-        private async Task<List<T>> GetPagedAsync<T>(IMongoCollection<T> collection, Pager pager, FilterDefinition<T> filter, IEnumerable<Models.SortDefinition<T>> sortDefinitions = null)
+        private static IAggregateFluent<Post> GetProjection(IAggregateFluent<Models.PostAuthorAggregate> aggregate)
         {
-            filter ??= Builders<T>.Filter.Empty;
-
-            var skip = (pager.CurrentPage - 1) * pager.ItemsPerPage;
-
-            var dataPipelineStageDefinitions = new List<PipelineStageDefinition<T, T>>();
-
-            var sortStageDefinition = GetSortDefinition(sortDefinitions);
-
-            if (sortStageDefinition != null)
-            {
-                dataPipelineStageDefinitions.Add(PipelineStageDefinitionBuilder.Sort(sortStageDefinition));
-            }
-
-            dataPipelineStageDefinitions.Add(PipelineStageDefinitionBuilder.Skip<T>(skip));
-            dataPipelineStageDefinitions.Add(PipelineStageDefinitionBuilder.Limit<T>(pager.ItemsPerPage));
-
-            var countFacet = AggregateFacet.Create("count", PipelineDefinition<T, AggregateCountResult>.Create(new[]
+            return aggregate
+                .Project(postAuthor => new Post
                 {
-                    PipelineStageDefinitionBuilder.Count<T>()
-                }));
-
-            var dataFacet = AggregateFacet.Create("data", PipelineDefinition<T, T>.Create(dataPipelineStageDefinitions));
-
-            var aggregation = await collection.Aggregate()
-                .Match(filter)
-                .Facet(countFacet, dataFacet)
-                .ToListAsync();
-
-            var count = aggregation.First()
-                .Facets.First(x => x.Name == "count")
-                .Output<AggregateCountResult>()
-                ?.FirstOrDefault()
-                ?.Count ?? 0;
-
-            var data = aggregation.First()
-                .Facets.First(x => x.Name == "data")
-                .Output<T>();
-
-            pager.Configure(count);
-
-            return data.ToList();
-        }
-
-        private MongoDB.Driver.SortDefinition<T> GetSortDefinition<T>(IEnumerable<Models.SortDefinition<T>> sortDefinitions)
-        {
-            var builder = Builders<T>.Sort;
-
-            if (sortDefinitions != null && sortDefinitions.Any())
-            {
-                MongoDB.Driver.SortDefinition<T> definition = null;
-                foreach (var sortDefinition in sortDefinitions)
-                {
-                    if (definition != null)
+                    Id = postAuthor.Id,
+                    AuthorId = postAuthor.AuthorId,
+                    BlogId = postAuthor.BlogId,
+                    PostType = postAuthor.PostType,
+                    Title = postAuthor.Title,
+                    Slug = postAuthor.Slug,
+                    Description = postAuthor.Description,
+                    Content = postAuthor.Content,
+                    Cover = postAuthor.Cover,
+                    PostViews = postAuthor.PostViews,
+                    Rating = postAuthor.Rating,
+                    IsFeatured = postAuthor.IsFeatured,
+                    Selected = postAuthor.Selected,
+                    Published = postAuthor.Published,
+                    DateCreated = postAuthor.DateCreated,
+                    DateUpdated = postAuthor.DateUpdated,
+                    Categories = postAuthor.Categories,
+                    Author = new Author
                     {
-                        definition = sortDefinition.IsDescending
-                            ? definition.Descending(sortDefinition.Sort)
-                            : definition.Ascending(sortDefinition.Sort);
+                        Id = postAuthor.Author.First().Id,
+                        Email = postAuthor.Author.First().Email,
+                        DisplayName = postAuthor.Author.First().DisplayName,
+                        Bio = postAuthor.Author.First().Bio,
+                        BlogId = postAuthor.Author.First().BlogId,
+                        Avatar = postAuthor.Author.First().Avatar,
+                        IsAdmin = postAuthor.Author.First().IsAdmin,
+                        DateCreated = postAuthor.Author.First().DateCreated,
+                        DateUpdated = postAuthor.Author.First().DateUpdated
                     }
-                    else
-                    {
-                        definition = sortDefinition.IsDescending
-                            ? builder.Descending(sortDefinition.Sort)
-                            : builder.Ascending(sortDefinition.Sort);
-                    }
-                }
-
-                return definition;
-            }
-
-            return null;
+                });
         }
 
         #endregion

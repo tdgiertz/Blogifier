@@ -30,18 +30,16 @@ namespace Blogifier.Core.Providers.EfCore
             return await _db.FileDescriptors.FindAsync(id);
         }
 
-        public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(Pager pager, string searchTerm)
+        public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(PagingDescriptor pagingDescriptor, string searchTerm)
         {
-            var query = _db.FileDescriptors.Where(d => d.Filename.ToLower().Contains(searchTerm.ToLower()) ||
+            var query = _db.FileDescriptors.Where(d =>
+                d.Filename.ToLower().Contains(searchTerm.ToLower()) ||
                 d.Description.ToLower().Contains(searchTerm.ToLower()));
-            var paginatedList = await PaginatedList<FileDescriptor>.CreateAsync(query, pager.Skip, pager.ItemsPerPage);
 
-            pager.Configure(paginatedList.TotalCount);
-
-            return paginatedList;
+            return await PaginatedList<FileDescriptor>.CreateAsync(query, pagingDescriptor);
         }
 
-        public async  Task<bool> InsertAsync(FileDescriptor fileDescriptor)
+        public async Task<bool> InsertAsync(FileDescriptor fileDescriptor)
         {
             _db.FileDescriptors.Add(fileDescriptor);
             return await _db.SaveChangesAsync() > 0;

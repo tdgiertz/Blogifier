@@ -1,14 +1,251 @@
 @page "/admin/drive/"
+@using System.Linq
+@using System.Net.Http.Headers
+@using Microsoft.Extensions.Logging
+@inject HttpClient _http
+@inject ILogger<DriveView> _logger
 @inject IStringLocalizer<Resource> _localizer
+
 <div class="container">
     <h1 class="section-title">@_localizer["Drive"]</h1>
     <div class="section-content">
-        <p class="mb-2">Drive is a file storage that you are able to upload and manage your files and use throughout the website.</p>
-        <div class="alert alert-secondary d-flex align-items-center">
-            @_localizer["under-development"].
-            <a class="ms-auto btn btn-sm btn-secondary py-1" target="_blank" href="https://github.com/blogifierdotnet/blogifier/projects/">
-                @_localizer["more-info"]
-            </a>
-         </div>
+        <p>
+            <label>
+                <InputFile class="form-control" OnChange="@OnInputFileChange" multiple />
+            </label>
+        </p>
+
+        @if (_filesToUpload.Count > 0)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <ul>
+                        @foreach (var file in _filesToUpload)
+                        {
+                            <li>
+                                File: @file.Name
+                                <br>
+                                @if (FileUpload(_uploadResults, file.Name, _logger, out var result))
+                                {
+                                    <span>
+                                        Stored File Name: @result.Filename
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        There was an error uploading the file '@result.Message'.
+                                    </span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+
+        @if (_files != null && _files.Count() > 0)
+        {
+            <ul class="list-group" aria-label="files">
+                <Virtualize Items="_files" Context="file">
+                    <li class="list-group-item">
+                        @if(IsEditing(file.Id))
+                        {
+                            <div class="row">
+                                <div class="col-10">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h4 class="mb-1">@file.Filename</h4>
+                                        <label>@file.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
+                                    </div>
+                                    <textarea class="form-control" @bind="file.Description" rows="1" placeholder="@_localizer["type-here"]"></textarea>
+                                </div>
+                                <div class="col-2 align-self-center text-end">
+                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Save" @onclick="async () => await SaveAsync(file.Id)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2" viewBox="0 0 16 16">
+                                            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Cancel" @onclick="() => ChangeEditState(file.Id, false)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Delete" @onclick="async () => await DeleteAsync(file.Id)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="row">
+                                <div class="col-10">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h4 class="mb-1">@file.Filename</h4>
+                                        <label>@file.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
+                                    </div>
+                                    <p class="text-muted mt-1">@file.Description</p>
+                                </div>
+                                <div class="col-2 align-self-center text-end">
+                                    <button class="btn btn-sm btn-blogifier" data-bs-toggle="tooltip" title="Edit" @onclick="() => ChangeEditState(file.Id, true)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                                            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z" />
+                                        </svg>
+                                    </button>
+                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Delete" @onclick="async () => await DeleteAsync(file.Id)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </li>
+                </Virtualize>
+            </ul>
+            <PagerComponent PagingDescriptor="_fileSearchModel.PagingDescriptor" OnPageChanged="@OnPageChanged" />
+        }
     </div>
 </div>
+
+@code {
+    private IList<FileModel> _files;
+    private FileSearchModel _fileSearchModel = new();
+    private List<File> _filesToUpload = new();
+    private List<FileModel> _uploadResults = new();
+    private int _maxAllowedFiles = 100;
+    private bool _shouldRender;
+    private Dictionary<Guid, bool> IsEditingLookup = new();
+
+    protected override bool ShouldRender() => _shouldRender;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _shouldRender = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        _fileSearchModel.PagingDescriptor ??= new PagingDescriptor(1, 20);
+        var response = await _http.PostAsJsonAsync<FileSearchModel>($"api/upload/list/", _fileSearchModel);
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<FileModel>>();
+        _fileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
+        _files = result.Results;
+        IsEditingLookup = _files.ToDictionary(k => k.Id, v => false);
+        StateHasChanged();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        var response = await _http.DeleteAsync($"api/upload/{id}");
+    }
+
+    private async Task SaveAsync(Guid id)
+    {
+        //var response = await _http.DeleteAsync($"api/upload/{id}");
+        ChangeEditState(id, false);
+    }
+
+    private void ChangeEditState(Guid id, bool isEditing)
+    {
+        if(IsEditingLookup.ContainsKey(id))
+        {
+            IsEditingLookup[id] = isEditing;
+        }
+    }
+
+    private bool IsEditing(Guid id)
+    {
+        if(IsEditingLookup.ContainsKey(id))
+        {
+            return IsEditingLookup[id];
+        }
+
+        return false;
+    }
+
+    private async Task OnPageChanged(int pageNumber)
+    {
+        await LoadAsync();
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        _shouldRender = false;
+        var upload = false;
+
+        using var content = new MultipartFormDataContent();
+
+        foreach (var file in e.GetMultipleFiles(_maxAllowedFiles))
+        {
+            if (_uploadResults.SingleOrDefault(f => f.Filename == file.Name) is null)
+            {
+                try
+                {
+                    var fileContent = new StreamContent(file.OpenReadStream(long.MaxValue));
+
+                    if (!string.IsNullOrEmpty(file.ContentType))
+                    {
+                        fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                    }
+
+                    _filesToUpload.Add(new() { Name = file.Name });
+
+                    content.Add(fileContent, "\"files\"", file.Name);
+
+                    upload = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation("{FileName} upload failed. {Message}", file.Name, ex.Message);
+
+                    _uploadResults.Add(
+                    new()
+                    {
+                        Filename = file.Name,
+                        Message = "File upload failed"
+                    });
+                }
+            }
+        }
+
+        if (upload)
+        {
+            var response = await _http.PostAsync("api/upload", content);
+
+            var new_uploadResults = await response.Content.ReadFromJsonAsync<IList<FileModel>>();
+
+            _uploadResults = _uploadResults.Concat(new_uploadResults).ToList();
+        }
+
+        _shouldRender = true;
+    }
+
+    private static bool FileUpload(IList<FileModel> _uploadResults, string fileName, ILogger<DriveView> logger, out FileModel result)
+    {
+        result = _uploadResults.SingleOrDefault(f => f.Filename == fileName);
+
+        if (result is null)
+        {
+            logger.LogInformation("{FileName} upload failed", fileName);
+            result = new()
+            {
+                Filename = fileName,
+                Message = "File upload failed"
+            };
+        }
+
+        return result.IsSuccessful;
+    }
+
+    private class File
+    {
+        public string Name { get; set; }
+    }
+}

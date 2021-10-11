@@ -1,5 +1,6 @@
 using Blogifier.Core.Extensions;
 using Blogifier.Core.Providers.MongoDb.Extensions;
+using Blogifier.Core.Providers.MongoDb.Models;
 using Blogifier.Shared;
 using Blogifier.Shared.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -68,7 +69,7 @@ namespace Blogifier.Core.Providers.MongoDb
 
                 try
                 {
-				    await _postCollection.InsertOneAsync(post);
+				    await _postCollection.InsertOneAsync((Post)post);
 				}
                 catch
 				{

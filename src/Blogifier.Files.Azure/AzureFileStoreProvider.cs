@@ -19,10 +19,7 @@ namespace Blogifier.Files.Azure
 
         public AzureFileStoreProvider(FileStoreConfiguration configuration)
         {
-            if(string.IsNullOrEmpty(configuration.BasePath))
-            {
-                throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.BasePath)}");
-            }
+            configuration.BasePath ??= "";
             if(string.IsNullOrEmpty(configuration.StoreName))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
@@ -40,18 +37,17 @@ namespace Blogifier.Files.Azure
 
         public async Task<bool> ExistsAsync(string objectName)
         {
-            return await _containerClient.GetBlobClient(objectName).ExistsAsync();
+            var objectPath = Path.Combine(_configuration.BasePath, objectName);
+            return await _containerClient.GetBlobClient(objectPath).ExistsAsync();
         }
 
         public async Task<FileResult> CreateAsync(IFormFile formFile)
         {
             var filename = Path.GetFileName(formFile.FileName);
+            var objectPath = Path.Combine(_configuration.BasePath, filename);
             var mimeType = MimeUtility.GetMimeMapping(filename);
 
-            using var stream = new MemoryStream();
-            await formFile.OpenReadStream().CopyToAsync(stream);
-
-            var result = await _containerClient.UploadBlobAsync(filename, stream);
+            var result = await _containerClient.UploadBlobAsync(objectPath, formFile.OpenReadStream());
             var uri = _containerClient.GetBlobClient(filename).Uri;
 
             return new FileResult
@@ -66,7 +62,8 @@ namespace Blogifier.Files.Azure
         {
             try
             {
-                var result = await _containerClient.DeleteBlobAsync(objectName);
+                var objectPath = Path.Combine(_configuration.BasePath, objectName);
+                var result = await _containerClient.DeleteBlobAsync(objectPath);
                 return true;
             }
             catch(Exception ex)
@@ -79,14 +76,15 @@ namespace Blogifier.Files.Azure
         public async IAsyncEnumerable<FileResult> ListAsync()
         {
             var containerUri = _containerClient.Uri;
-            await foreach (var item in _containerClient.GetBlobsAsync())
+            await foreach (var item in _containerClient.GetBlobsByHierarchyAsync(delimiter: "/"))
             {
-                var filename = Path.GetFileName(item.Name);
+                if(!item.IsBlob) continue;
+                var filename = Path.GetFileName(item.Blob.Name);
                 yield return new FileResult
                 {
-                    Url = Flurl.Url.Combine(_containerClient.Uri.AbsoluteUri, item.Name),
+                    Url = Flurl.Url.Combine(_containerClient.Uri.AbsoluteUri, item.Blob.Name),
                     Filename = filename,
-                    Path = item.Name,
+                    Path = item.Blob.Name,
                     MimeType = MimeMapping.MimeUtility.GetMimeMapping(filename)
                 };
             }

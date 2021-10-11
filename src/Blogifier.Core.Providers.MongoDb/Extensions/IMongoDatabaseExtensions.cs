@@ -9,12 +9,14 @@ namespace Blogifier.Core.Providers.MongoDb.Extensions
     {
         public static IMongoCollection<T> GetNamedCollection<T>(this IMongoDatabase db)
         {
-            var databaseName = GetTypeDatabaseName(typeof(T));
+            var databaseName = GetTypeCollectionName(typeof(T));
 
             return db.GetCollection<T>(databaseName);
         }
 
-        private static string GetTypeDatabaseName(Type type)
+        public static string GetTypeCollectionName<T>() => GetTypeCollectionName(typeof(T));
+
+        private static string GetTypeCollectionName(Type type)
         {
             switch (type.Name)
             {
@@ -22,6 +24,8 @@ namespace Blogifier.Core.Providers.MongoDb.Extensions
                     return "Author";
                 case nameof(MongoBlog):
                     return "Blog";
+                case nameof(FileDescriptor):
+                    return "FileDescriptor";
                 case nameof(MailSetting):
                     return "MailSetting";
                 case nameof(Newsletter):

@@ -1,0 +1,113 @@
+﻿@inject IStringLocalizer<Resource> _localizer
+
+@if (PagingDescriptor != null)
+{
+    <div class="row">
+        <div class="col-12">
+            @if (PagingDescriptor.PageCount > 0)
+            {
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(!IsPreviousEnabled ? "disabled" : "")">
+                        <button type="button" class="page-link" @onclick="async () => await PagerButtonClicked(1)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-left" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M8.354 1.646a.5.5 0 0 1 0 .708L2.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                                <path fill-rule="evenodd" d="M12.354 1.646a.5.5 0 0 1 0 .708L6.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                            </svg>
+                        </button>
+                    </li>
+                    <li class="page-item @(!IsPreviousEnabled ? "disabled" : "")">
+                        <button type="button" class="page-link" @onclick="async () => await PagerButtonClicked(PagingDescriptor.CurrentPage - 1)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-left" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                            </svg>
+                        </button>
+                    </li>
+                    @foreach (var pageNumber in PageNumbers)
+                    {
+                        @if (pageNumber == PagingDescriptor.CurrentPage)
+                        {
+                            <li class="page-item active">
+                                <span class="page-link">@pageNumber</span>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item">
+                                <button type="button" class="page-link" @onclick="async () => await PagerButtonClicked(pageNumber)">@pageNumber</button>
+                            </li>
+                        }
+                    }
+                    <li class="page-item @(!IsNextEnabled ? "disabled" : "")">
+                        <button type="button" class="page-link" @onclick="async () => await PagerButtonClicked(PagingDescriptor.CurrentPage + 1)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                            </svg>
+                        </button>
+                    </li>
+                    <li class="page-item @(!IsNextEnabled ? "disabled" : "")">
+                        <button type="button" class="page-link" @onclick="async () => await PagerButtonClicked(PagingDescriptor.PageCount)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-right" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M3.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L9.293 8 3.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                <path fill-rule="evenodd" d="M7.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L13.293 8 7.646 2.354a.5.5 0 0 1 0-.708z"/>
+                            </svg>
+                        </button>
+                    </li>
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public PagingDescriptor PagingDescriptor { get; set; }
+    [Parameter]
+    public Func<int, Task> OnPageChanged { get; set; }
+
+    private bool IsPreviousEnabled => PagingDescriptor.CurrentPage > 1;
+    private bool IsNextEnabled => PagingDescriptor.CurrentPage < PagingDescriptor.PageCount;
+    private List<int> PageNumbers;
+    private static int NumberOfPagesShown = 5;
+
+    protected override void OnParametersSet()
+    {
+        CalculateVisiblePages();
+
+        base.OnParametersSet();
+    }
+
+    private void CalculateVisiblePages()
+    {
+        if(PagingDescriptor.PageCount <= NumberOfPagesShown)
+        {
+            PageNumbers = Enumerable.Range(1, PagingDescriptor.PageCount).ToList();
+            return;
+        }
+
+        var targetCount = NumberOfPagesShown / 2;
+        var numberOfPagesMinusCurrent = NumberOfPagesShown - 1;
+        var leftOfCurrentPage = PagingDescriptor.CurrentPage - 1;
+        var rightOfCurrentPage = PagingDescriptor.PageCount - PagingDescriptor.CurrentPage;
+
+        int leftStart;
+        if(leftOfCurrentPage > rightOfCurrentPage)
+        {
+            var rightPageCount = Math.Min(rightOfCurrentPage, targetCount);
+            leftStart = PagingDescriptor.CurrentPage - numberOfPagesMinusCurrent + rightPageCount;
+        }
+        else
+        {
+            leftStart = PagingDescriptor.CurrentPage - Math.Min(NumberOfPagesShown / 2, leftOfCurrentPage);
+        }
+
+        PageNumbers = Enumerable.Range(leftStart, NumberOfPagesShown).ToList();
+    }
+
+    protected async Task PagerButtonClicked(int pageNumber)
+    {
+        if(pageNumber == PagingDescriptor.CurrentPage) return;
+        PagingDescriptor.SetCurrentPage(pageNumber);
+        CalculateVisiblePages();
+        await OnPageChanged?.Invoke(pageNumber);
+    }
+}

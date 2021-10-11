@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Blogifier.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blogifier.Core.Providers.EfCore
@@ -12,7 +13,7 @@ namespace Blogifier.Core.Providers.EfCore
         public int TotalPages { get; private set; }
         public int TotalCount { get; private set; }
 
-        public PaginatedList(List<T> items, int count, int pageIndex, int pageSize)
+        private PaginatedList(List<T> items, int count, int pageIndex, int pageSize)
         {
             TotalCount = count;
             PageIndex = pageIndex;
@@ -37,13 +38,17 @@ namespace Blogifier.Core.Providers.EfCore
             }
         }
 
-        public static async Task<PaginatedList<T>> CreateAsync(IQueryable<T> source, int skip, int pageSize)
+        public static async Task<PaginatedList<T>> CreateAsync(IQueryable<T> source, PagingDescriptor pagingDescriptor)
         {
             var count = await source.CountAsync();
-            var items = await source.Skip(skip).Take(pageSize).ToListAsync();
-            var pageIndex = (int)(skip / pageSize) + 1;
+            var items = await source.Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).ToListAsync();
+            var pageIndex = (int)(pagingDescriptor.Skip / pagingDescriptor.PageSize) + 1;
 
-            return new PaginatedList<T>(items, count, pageIndex, pageSize);
+            var result = new PaginatedList<T>(items, count, pageIndex, pagingDescriptor.PageSize);
+
+            pagingDescriptor.SetTotalCount(result.TotalCount);
+
+            return result;
         }
     }
 }

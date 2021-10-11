@@ -1,6 +1,5 @@
 using Blogifier.Core.Extensions;
-using Blogifier.Core.Providers.EfCore.Extensions;
-using Blogifier.Core.Providers.MongoDb.Extensions;
+using Blogifier.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -46,15 +45,8 @@ namespace Blogifier
             }));
 
             services.AddBlogDatabase(Configuration);
-
-            if (section.GetValue<string>("DbProvider") == "MongoDb")
-            {
-                services.AddMongoDbBlogProviders();
-            }
-            else
-            {
-                services.AddEfCoreBlogProviders();
-            }
+            services.AddFileStore(Configuration);
+            services.AddDataStore(Configuration);
 
             services.AddControllersWithViews();
             services.AddRazorPages();
@@ -71,6 +63,12 @@ namespace Blogifier
             }
             else
             {
+                app.Use((context, next) =>
+                {
+                    context.Request.Scheme = "https";
+                    return next();
+                });
+
                 app.UseExceptionHandler("/Error");
             }
 

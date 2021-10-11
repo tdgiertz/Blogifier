@@ -51,7 +51,7 @@ namespace Blogifier.Core.Providers.EfCore
 				.ToListAsync();
 		}
 
-		public async Task<IEnumerable<PostItem>> Search(Pager pager, string term, Guid author = default(Guid), string include = "", bool sanitize = false)
+		public async Task<IEnumerable<PostItem>> Search(PagingDescriptor pagingDescriptor, string term, Guid author = default(Guid), string include = "", bool sanitize = false)
 		{
             term = term.ToLower();
 
@@ -104,8 +104,8 @@ namespace Blogifier.Core.Providers.EfCore
 			{
 				posts.Add(results[i].Item);
 			}
-			pager.Configure(posts.Count);
-			return await Task.Run(() => posts.Skip(pager.Skip).Take(pager.ItemsPerPage).ToList());
+			pagingDescriptor.SetTotalCount(posts.Count);
+			return await Task.Run(() => posts.Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).ToList());
 		}
 
 		public async Task<Post> GetPostById(Guid id)
@@ -261,7 +261,7 @@ namespace Blogifier.Core.Providers.EfCore
 			return await _db.SaveChangesAsync() > 0;
 		}
 
-		public async Task<IEnumerable<PostItem>> GetList(Pager pager, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
+		public async Task<IEnumerable<PostItem>> GetList(PagingDescriptor pagingDescriptor, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
 		{
 			var posts = new List<Post>();
 			foreach (var p in GetPosts(include, author))
@@ -289,10 +289,10 @@ namespace Blogifier.Core.Providers.EfCore
                     }
                 }
 			}
-			pager.Configure(posts.Count);
+			pagingDescriptor.SetTotalCount(posts.Count);
 
 			var items = new List<PostItem>();
-			foreach (var p in posts.Skip(pager.Skip).Take(pager.ItemsPerPage).ToList())
+			foreach (var p in posts.Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).ToList())
 			{
 				items.Add(await PostToItem(p, sanitize));
 			}
@@ -304,7 +304,7 @@ namespace Blogifier.Core.Providers.EfCore
             return await _db.Posts.Include(p => p.Categories).Where(c => c.Content.ToLower() == content.ToLower()).ToListAsync();
         }
 
-		public async Task<IEnumerable<PostItem>> GetPopular(Pager pager, Guid author = default(Guid))
+		public async Task<IEnumerable<PostItem>> GetPopular(PagingDescriptor pagingDescriptor, Guid author = default(Guid))
 		{
 			var posts = new List<Post>();
 
@@ -315,10 +315,10 @@ namespace Blogifier.Core.Providers.EfCore
 				posts = _db.Posts.AsNoTracking().Where(p => p.Published > DateTime.MinValue)
 					 .OrderByDescending(p => p.PostViews).ThenByDescending(p => p.Published).ToList();
 
-			pager.Configure(posts.Count);
+			pagingDescriptor.SetTotalCount(posts.Count);
 
 			var items = new List<PostItem>();
-			foreach (var p in posts.Skip(pager.Skip).Take(pager.ItemsPerPage).ToList())
+			foreach (var p in posts.Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).ToList())
 			{
 				items.Add(await PostToItem(p, true));
 			}

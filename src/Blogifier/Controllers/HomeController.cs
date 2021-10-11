@@ -56,7 +56,7 @@ namespace Blogifier.Controllers
         {
             if (!string.IsNullOrEmpty(slug))
             {
-                return await getSingleBlogPost(slug);
+                return await GetSingleBlogPost(slug);
             }
             return Redirect("~/");
         }
@@ -103,7 +103,7 @@ namespace Blogifier.Controllers
         [HttpGet("posts/{slug}")]
         public async Task<IActionResult> Single(string slug)
         {
-            return await getSingleBlogPost(slug);
+            return await GetSingleBlogPost(slug);
         }
 
         [HttpGet("error")]
@@ -185,8 +185,7 @@ namespace Blogifier.Controllers
             return result.Success;
         }
 
-
-        public async Task<IActionResult> getSingleBlogPost(string slug)
+        public async Task<IActionResult> GetSingleBlogPost(string slug)
         {
             try
             {

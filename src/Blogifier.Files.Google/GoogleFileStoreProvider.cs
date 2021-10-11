@@ -21,15 +21,12 @@ namespace Blogifier.Files.Google
 
         public GoogleFileStoreProvider(FileStoreConfiguration configuration)
         {
-            if(string.IsNullOrEmpty(configuration.BasePath))
-            {
-                throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.BasePath)}");
-            }
-            if(string.IsNullOrEmpty(configuration.StoreName))
+            configuration.BasePath ??= "";
+            if (string.IsNullOrEmpty(configuration.StoreName))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
             }
-            if(string.IsNullOrEmpty(configuration.ThumbnailBasePath))
+            if (string.IsNullOrEmpty(configuration.ThumbnailBasePath))
             {
                 configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
             }
@@ -38,7 +35,7 @@ namespace Blogifier.Files.Google
 
             if (configuration.AuthenticationKeySource == KeySource.File || configuration.AuthenticationKeySource == KeySource.String)
             {
-                if(string.IsNullOrEmpty(configuration.AuthenticationKey))
+                if (string.IsNullOrEmpty(configuration.AuthenticationKey))
                 {
                     throw new System.ArgumentException($"Parameter value is required based on current value of {nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.AuthenticationKeySource)}",
                         $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.AuthenticationKey)}");
@@ -58,13 +55,14 @@ namespace Blogifier.Files.Google
         {
             try
             {
-                await _storageClient.GetObjectAsync(_configuration.StoreName, objectName);
+                var objectPath = Path.Combine(_configuration.BasePath, objectName);
+                await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
 
                 return false;
             }
             catch (GoogleApiException ex)
             {
-                if(ex.Error.Code == 404)
+                if (ex.Error.Code == 404)
                 {
                     return true;
                 }
@@ -76,17 +74,15 @@ namespace Blogifier.Files.Google
         public async Task<FileResult> CreateAsync(IFormFile formFile)
         {
             var filename = Path.GetFileName(formFile.FileName);
+            var objectPath = Path.Combine(_configuration.BasePath, filename);
             var mimeType = MimeUtility.GetMimeMapping(filename);
-
-            using var stream = new MemoryStream();
-            await formFile.OpenReadStream().CopyToAsync(stream);
 
             var uploadOptions = new UploadObjectOptions
             {
                 PredefinedAcl = PredefinedObjectAcl.PublicRead
             };
 
-            var result = await _storageClient.UploadObjectAsync(_configuration.StoreName, filename, mimeType, stream, uploadOptions);
+            var result = await _storageClient.UploadObjectAsync(_configuration.StoreName, objectPath, mimeType, formFile.OpenReadStream(), uploadOptions);
 
             return new FileResult
             {
@@ -101,10 +97,11 @@ namespace Blogifier.Files.Google
         {
             try
             {
-                await _storageClient.DeleteObjectAsync(_configuration.StoreName, objectName);
+                var objectPath = Path.Combine(_configuration.BasePath, objectName);
+                await _storageClient.DeleteObjectAsync(_configuration.StoreName, objectPath);
                 return true;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Log.Error(ex, "Google DeleteObjectAsync failed");
                 return false;
@@ -113,7 +110,11 @@ namespace Blogifier.Files.Google
 
         public async IAsyncEnumerable<FileResult> ListAsync()
         {
-            await foreach (var item in _storageClient.ListObjectsAsync(_configuration.StoreName))
+            var onlyCurrentDirectoryOptions = new ListObjectsOptions
+            {
+                Delimiter = "/"
+            };
+            await foreach (var item in _storageClient.ListObjectsAsync(_configuration.StoreName, options: onlyCurrentDirectoryOptions))
             {
                 var filename = Path.GetFileName(item.Name);
                 yield return new FileResult

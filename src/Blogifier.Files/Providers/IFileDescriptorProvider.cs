@@ -7,7 +7,7 @@ namespace Blogifier.Files.Providers
 {
     public interface IFileDescriptorProvider
     {
-        Task<IEnumerable<FileDescriptor>> GetPagedAsync(Pager pager, string searchTerm);
+        Task<IEnumerable<FileDescriptor>> GetPagedAsync(PagingDescriptor pagingDescriptor, string searchTerm);
         Task<FileDescriptor> GetAsync(Guid id);
         Task<bool> InsertAsync(FileDescriptor fileDescriptor);
         Task<bool> UpdateAsync(FileDescriptor fileDescriptor);

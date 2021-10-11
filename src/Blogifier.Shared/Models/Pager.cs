@@ -1,14 +1,13 @@
 ﻿namespace Blogifier.Shared
 {
-    public class Pager
+    public class Pager : PagingDescriptor
     {
-        public Pager(int currentPage, int itemsPerPage = 0)
+        public Pager(int currentPage, int pageSize = 0) : base(currentPage, pageSize)
         {
-            CurrentPage = currentPage;
-            ItemsPerPage = itemsPerPage;
-
-            if (ItemsPerPage == 0)
-                ItemsPerPage = 10;
+            if (PageSize == 0)
+            {
+                SetPageSize(10);
+            }
 
             Newer = CurrentPage - 1;
             ShowNewer = CurrentPage > 1 ? true : false;
@@ -16,30 +15,23 @@
             Older = currentPage + 1;
         }
 
-        public void Configure(long total)
+        public override void SetTotalCount(long totalCount)
         {
-            if (total == 0)
+            if (totalCount == 0)
+            {
                 return;
+            }
 
-            if (ItemsPerPage == 0)
-                ItemsPerPage = 10;
+            base.SetTotalCount(totalCount);
 
-            Total = total;
-            var lastItem = CurrentPage * ItemsPerPage;
-            ShowOlder = total > lastItem ? true : false;
-            if (CurrentPage < 1 || lastItem > total + ItemsPerPage)
+            var lastItem = CurrentPage * PageSize;
+            ShowOlder = totalCount > lastItem ? true : false;
+            if (CurrentPage < 1 || lastItem > totalCount + PageSize)
             {
                 NotFound = true;
             }
-            LastPage = (int)((total % ItemsPerPage) == 0 ? total / ItemsPerPage : (total / ItemsPerPage) + 1);
-            if (LastPage == 0) LastPage = 1;
         }
 
-        public int Skip => CurrentPage * ItemsPerPage - ItemsPerPage;
-
-        public int CurrentPage { get; set; } = 1;
-        public int ItemsPerPage { get; set; }
-        public long Total { get; set; }
         public bool NotFound { get; set; }
 
         public int Newer { get; set; }
@@ -52,6 +44,5 @@
         public string LinkToOlder { get; set; }
 
         public string RouteValue { get; set; }
-        public int LastPage { get; set; } = 1;
     }
 }

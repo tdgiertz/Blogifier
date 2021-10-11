@@ -1,3 +1,4 @@
+using Blogifier.Core.Providers.MongoDb.Models;
 using Blogifier.Shared;
 using MongoDB.Bson.Serialization;
 
@@ -35,6 +36,15 @@ namespace Blogifier.Core.Providers
                     m.AutoMap();
                     m.MapIdProperty(a => a.Id);
                     m.UnmapProperty(a => a.Posts);
+                });
+            }
+
+            if (!BsonClassMap.IsClassMapRegistered(typeof(FileDescriptor)))
+            {
+                BsonClassMap.RegisterClassMap<FileDescriptor>(m =>
+                {
+                    m.AutoMap();
+                    m.MapIdProperty(a => a.Id);
                 });
             }
 

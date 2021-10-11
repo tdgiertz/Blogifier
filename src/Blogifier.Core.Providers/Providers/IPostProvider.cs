@@ -18,9 +18,9 @@ namespace Blogifier.Core.Providers
 		Task<bool> Featured(Guid id, bool featured);
 		Task<IEnumerable<PostItem>> GetPostItems();
 		Task<PostModel> GetPostModel(string slug);
-		Task<IEnumerable<PostItem>> GetPopular(Pager pager, Guid author = default(Guid));
-		Task<IEnumerable<PostItem>> Search(Pager pager, string term, Guid author = default(Guid), string include = "", bool sanitize = false);
-		Task<IEnumerable<PostItem>> GetList(Pager pager, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true);
+		Task<IEnumerable<PostItem>> GetPopular(PagingDescriptor pagingDescriptor, Guid author = default(Guid));
+		Task<IEnumerable<PostItem>> Search(PagingDescriptor pagingDescriptor, string term, Guid author = default(Guid), string include = "", bool sanitize = false);
+		Task<IEnumerable<PostItem>> GetList(PagingDescriptor pagingDescriptor, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true);
 		Task<bool> Remove(Guid id);
 	}
 }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.Linq;
 using System.Collections.Generic;
+using Serilog;
 
 namespace Blogifier.Files
 {
@@ -19,14 +20,14 @@ namespace Blogifier.Files
             _fileDescriptorProvider = fileDescriptorProvider;
         }
 
-        public async Task<FileListModel> GetPagedAsync(FileSearchModel searchModel)
+        public async Task<PagedResult<FileModel>> GetPagedAsync(FileSearchModel searchModel)
         {
-            var fileDescriptors = await _fileDescriptorProvider.GetPagedAsync(searchModel.Pager, searchModel.SearchTerm);
+            var fileDescriptors = await _fileDescriptorProvider.GetPagedAsync(searchModel.PagingDescriptor, searchModel.SearchTerm);
 
-            return  new FileListModel
+            return new PagedResult<FileModel>
             {
-                FileModels = fileDescriptors.Select(d => ToFileModel(d)),
-                Pager = searchModel.Pager
+                Results = fileDescriptors.Select(d => ToFileModel(d)).ToList(),
+                PagingDescriptor = searchModel.PagingDescriptor
             };
         }
 
@@ -42,12 +43,13 @@ namespace Blogifier.Files
             return new FileModel
             {
                 Id = fileDescriptor.Id,
-                FileName = fileDescriptor.Filename,
+                Filename = fileDescriptor.Filename,
                 MimeType = fileDescriptor.MimeType,
-                Uri = fileDescriptor.Url,
+                Url = fileDescriptor.Url,
                 Description = fileDescriptor.Description,
                 DateCreated = fileDescriptor.DateCreated,
-                DateUpdated = fileDescriptor.DateUpdated
+                DateUpdated = fileDescriptor.DateUpdated,
+                IsSuccessful = true
             };
         }
 
@@ -56,9 +58,9 @@ namespace Blogifier.Files
             return new FileDescriptor
             {
                 Id = fileModel.Id,
-                Filename = fileModel.FileName,
+                Filename = fileModel.Filename,
                 MimeType = fileModel.MimeType,
-                Url = fileModel.Uri,
+                Url = fileModel.Url,
                 Description = fileModel.Description,
                 DateCreated = fileModel.DateCreated,
                 DateUpdated = fileModel.DateUpdated
@@ -79,11 +81,40 @@ namespace Blogifier.Files
 
         public async Task<FileModel> CreateAsync(IFormFile formFile)
         {
-            var fileResult = await _fileStoreProvider.CreateAsync(formFile);
-            var fileDescriptor = ToFileDescriptor(fileResult);
-            await _fileDescriptorProvider.InsertAsync(fileDescriptor);
+            FileModel fileModel;
+            FileDescriptor fileDescriptor;
+            try
+            {
+                var fileResult = await _fileStoreProvider.CreateAsync(formFile);
+                fileDescriptor = ToFileDescriptor(fileResult);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to save file");
+                fileModel = new FileModel
+                {
+                    IsSuccessful = false,
+                    Message = "Failed to save file"
+                };
+                return fileModel;
+            }
+            try
+            {
+                await _fileDescriptorProvider.InsertAsync(fileDescriptor);
+                fileModel = ToFileModel(fileDescriptor);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to write file descriptor");
+                fileModel = new FileModel
+                {
+                    IsSuccessful = false,
+                    Message = "File saved. Failed to write file descriptor."
+                };
+                return fileModel;
+            }
 
-            return ToFileModel(fileDescriptor);
+            return fileModel;
         }
 
         public async Task<bool> UpdateAsync(FileModel model)

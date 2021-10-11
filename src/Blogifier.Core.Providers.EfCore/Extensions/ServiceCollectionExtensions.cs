@@ -1,3 +1,4 @@
+using Blogifier.Files.Providers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Blogifier.Core.Providers.EfCore.Extensions
@@ -8,6 +9,7 @@ namespace Blogifier.Core.Providers.EfCore.Extensions
         {
             services.AddScoped<IAuthorProvider, AuthorProvider>();
             services.AddScoped<IBlogProvider, BlogProvider>();
+            services.AddScoped<IFileDescriptorProvider, FileDescriptorProvider>();
             services.AddScoped<IPostProvider, PostProvider>();
             services.AddScoped<IStorageProvider, StorageProvider>();
             services.AddScoped<IFeedProvider, FeedProvider>();

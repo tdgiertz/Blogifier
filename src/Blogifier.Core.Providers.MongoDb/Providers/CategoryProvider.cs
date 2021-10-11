@@ -1,7 +1,6 @@
 using Blogifier.Core.Providers.MongoDb.Extensions;
 using Blogifier.Core.Providers.MongoDb.Models;
 using Blogifier.Shared;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;

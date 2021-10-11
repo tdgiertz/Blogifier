@@ -7,7 +7,7 @@ namespace Blogifier.Files
 {
     public interface IFileManager
     {
-        Task<FileListModel> GetPagedAsync(FileSearchModel searchModel);
+        Task<PagedResult<FileModel>> GetPagedAsync(FileSearchModel searchModel);
         Task<FileModel> GetAsync(Guid id);
         Task<FileModel> CreateAsync(IFormFile formFile);
         Task<bool> UpdateAsync(FileModel model);
