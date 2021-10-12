@@ -114,6 +114,9 @@
 </div>
 
 @code {
+    [Inject]
+    protected Sotsera.Blazor.Toaster.IToaster Toaster { get; set; }
+
     private IList<FileModel> _files;
     private FileSearchModel _fileSearchModel = new();
     private List<File> _filesToUpload = new();
@@ -133,7 +136,7 @@
     private async Task LoadAsync()
     {
         _fileSearchModel.PagingDescriptor ??= new PagingDescriptor(1, 20);
-        var response = await _http.PostAsJsonAsync<FileSearchModel>($"api/upload/list/", _fileSearchModel);
+        var response = await _http.PostAsJsonAsync($"api/upload/list/", _fileSearchModel);
         var result = await response.Content.ReadFromJsonAsync<PagedResult<FileModel>>();
         _fileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
         _files = result.Results;
@@ -143,13 +146,64 @@
 
     private async Task DeleteAsync(Guid id)
     {
-        var response = await _http.DeleteAsync($"api/upload/{id}");
+        try
+        {
+            var response = await _http.DeleteAsync($"api/upload/{id}");
+            if(await HandleBoolResult(response))
+            {
+                var toRemove = _files.FirstOrDefault(f => f.Id == id);
+                if(toRemove != null)
+                {
+                    _files.Remove(toRemove);
+                }
+                IsEditingLookup.Remove(id);
+            }
+        }
+        catch(Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred on file delete");
+            Toaster.Error(_localizer["generic-error"]);
+        }
     }
 
     private async Task SaveAsync(Guid id)
     {
-        //var response = await _http.DeleteAsync($"api/upload/{id}");
-        ChangeEditState(id, false);
+        try
+        {
+            var model = _files.FirstOrDefault(f => f.Id == id);
+            if(model != null)
+            {
+                var response = await _http.PutAsJsonAsync($"api/upload", model);
+                if(await HandleBoolResult(response))
+                {
+                    ChangeEditState(id, false);
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred on file save");
+            Toaster.Error(_localizer["generic-error"]);
+        }
+    }
+
+    private async Task<bool> HandleBoolResult(HttpResponseMessage response)
+    {
+        var isSuccessful = false;
+        if(response.IsSuccessStatusCode)
+        {
+            isSuccessful = await response.Content.ReadFromJsonAsync<bool>();
+        }
+        if(isSuccessful)
+        {
+            Toaster.Success(_localizer["completed"]);
+        }
+        else
+        {
+            Toaster.Error(_localizer["generic-error"]);
+        }
+
+        return isSuccessful;
     }
 
     private void ChangeEditState(Guid id, bool isEditing)
@@ -247,5 +301,50 @@
     private class File
     {
         public string Name { get; set; }
+    }
+
+    public class ProgressiveStreamContent : StreamContent
+    {
+        private readonly System.IO.Stream _fileStream;
+        private readonly int _maxBuffer = 1024 * 4;
+
+        public ProgressiveStreamContent(System.IO.Stream stream, int maxBuffer, Action<long, double> onProgress) : base(stream)
+        {
+            _fileStream = stream;
+            _maxBuffer = maxBuffer;
+            OnProgress += onProgress;
+        }
+
+        public event Action<long, double> OnProgress;
+
+        protected async override Task SerializeToStreamAsync(System.IO.Stream stream, System.Net.TransportContext context)
+        {
+            var buffer = new byte[_maxBuffer];
+            var totalLength = _fileStream.Length;
+            var uploadedByteCount = 0L;
+
+            while (true)
+            {
+                using (_fileStream)
+                {
+                    var length = await _fileStream.ReadAsync(buffer, 0, _maxBuffer);
+
+                    if (length <= 0)
+                    {
+                        break;
+                    }
+
+                    uploadedByteCount += length;
+                    var percentage = Convert.ToDouble(uploadedByteCount * 100 / _fileStream.Length);
+
+                    await stream.WriteAsync(buffer);
+
+                    OnProgress?.Invoke(uploadedByteCount, percentage);
+
+                    await Task.Delay(250);
+                }
+            }
+        }
+
     }
 }

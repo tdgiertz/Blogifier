@@ -3,6 +3,8 @@ using Blogifier.Core.Providers.EfCore.Extensions;
 using Blogifier.Core.Providers.MongoDb.Extensions;
 using Blogifier.Files;
 using Blogifier.Files.Azure.Extensions;
+using Blogifier.Files.Aws.Extensions;
+using Blogifier.Files.Backblaze.Extensions;
 using Blogifier.Files.Google.Extensions;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
@@ -47,6 +49,14 @@ namespace Blogifier.Extensions
             {
                 services.UseAzureFileStore();
             }
+            else if (provider.Equals("Aws", System.StringComparison.InvariantCultureIgnoreCase))
+            {
+                services.UseAwsFileStore();
+            }
+            else if (provider.Equals("Backblaze", System.StringComparison.InvariantCultureIgnoreCase))
+            {
+                services.UseBackblazeFileStore();
+            }
             else
             {
                 services.AddScoped<IFileStoreProvider, FileStoreProvider>();
@@ -62,10 +72,13 @@ namespace Blogifier.Extensions
             return new FileStoreConfiguration
             {
                 AuthenticationKey = section["AuthenticationKey"],
+                AuthenticationKeyId = section["AuthenticationKeyId"],
+                Endpoint = section["Endpoint"],
                 AuthenticationKeySource = Enum.Parse<KeySource>(section["KeySource"]),
                 BasePath = section["BasePath"],
                 ThumbnailBasePath = section["ThumbnailBasePath"],
-                StoreName = section["StoreName"]
+                StoreName = section["StoreName"],
+                PublicUrlTemplate = section["PublicUrlTemplate"]
             };
         }
     }

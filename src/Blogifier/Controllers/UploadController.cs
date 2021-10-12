@@ -64,10 +64,10 @@ namespace Blogifier.Controllers
             return await _fileManager.UpdateAsync(fileModel);
         }
 
-        [HttpDelete]
-        public async Task<ActionResult<bool>> Delete(Guid guid)
+        [HttpDelete("{id:Guid}")]
+        public async Task<ActionResult<bool>> Delete(Guid id)
         {
-            return await _fileManager.DeleteAsync(guid);
+            return await _fileManager.DeleteAsync(id);
         }
 
         [HttpGet, Route("Syncronize")]

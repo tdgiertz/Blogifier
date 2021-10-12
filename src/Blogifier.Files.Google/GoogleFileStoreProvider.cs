@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Blogifier.Files.Extensions;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
 using Blogifier.Shared;
@@ -25,6 +26,10 @@ namespace Blogifier.Files.Google
             if (string.IsNullOrEmpty(configuration.StoreName))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
+            }
+            if (string.IsNullOrEmpty(configuration.PublicUrlTemplate))
+            {
+                throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.PublicUrlTemplate)}");
             }
             if (string.IsNullOrEmpty(configuration.ThumbnailBasePath))
             {
@@ -86,7 +91,7 @@ namespace Blogifier.Files.Google
 
             return new FileResult
             {
-                Url = $"http(s)://storage.googleapis.com/{_configuration.StoreName}/{result.Name}",
+                Url = _configuration.ReplacePublicUrlTemplateValues(filename, result.Name),
                 Filename = filename,
                 Path = result.Name,
                 MimeType = mimeType
@@ -119,7 +124,7 @@ namespace Blogifier.Files.Google
                 var filename = Path.GetFileName(item.Name);
                 yield return new FileResult
                 {
-                    Url = $"https://storage.googleapis.com/{_configuration.StoreName}/{item.Name}",
+                    Url = _configuration.ReplacePublicUrlTemplateValues(filename, item.Name),
                     Filename = filename,
                     Path = item.Name,
                     MimeType = item.ContentType
