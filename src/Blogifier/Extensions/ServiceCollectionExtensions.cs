@@ -69,7 +69,7 @@ namespace Blogifier.Extensions
 
         private static FileStoreConfiguration GetFromConfiguration(IConfigurationSection section)
         {
-            return new FileStoreConfiguration
+            var configuration = new FileStoreConfiguration
             {
                 AuthenticationKey = section["AuthenticationKey"],
                 AuthenticationKeyId = section["AuthenticationKeyId"],
@@ -78,8 +78,20 @@ namespace Blogifier.Extensions
                 BasePath = section["BasePath"],
                 ThumbnailBasePath = section["ThumbnailBasePath"],
                 StoreName = section["StoreName"],
-                PublicUrlTemplate = section["PublicUrlTemplate"]
+                PublicUrlTemplate = section["PublicUrlTemplate"],
+                AccountId = section["AccountId"]
             };
+
+            if(int.TryParse(section["UrlExpirationMinutes"], out var urlExpirationMinutes))
+            {
+                configuration.UrlExpirationMinutes = urlExpirationMinutes;
+            }
+            else
+            {
+                configuration.UrlExpirationMinutes = 60;
+            }
+
+            return configuration;
         }
     }
 }

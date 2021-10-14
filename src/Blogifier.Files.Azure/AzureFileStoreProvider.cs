@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Azure.Storage;
 using Azure.Storage.Blobs;
+using Azure.Storage.Sas;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
 using Blogifier.Shared;
+using Blogifier.Shared.Models;
 using Microsoft.AspNetCore.Http;
 using MimeMapping;
 using Serilog;
@@ -24,6 +27,10 @@ namespace Blogifier.Files.Azure
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
             }
+            if(configuration.UrlExpirationMinutes <= 0)
+            {
+                throw new System.ArgumentException("Argument property invalid", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.UrlExpirationMinutes)}");
+            }
             if(string.IsNullOrEmpty(configuration.ThumbnailBasePath))
             {
                 configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
@@ -33,6 +40,46 @@ namespace Blogifier.Files.Azure
             _containerClient = blobServiceClient.GetBlobContainerClient(configuration.StoreName);
 
             _configuration = configuration;
+        }
+
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        {
+            var clockSkew = TimeSpan.FromSeconds(5);
+
+            var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
+
+            var blobSasBuilder = new BlobSasBuilder
+            {
+                StartsOn = DateTime.UtcNow.Subtract(clockSkew),
+                ExpiresOn = DateTime.UtcNow.Add(TimeSpan.FromMinutes(_configuration.UrlExpirationMinutes)) + clockSkew,
+                BlobContainerName = _configuration.StoreName,
+                BlobName = objectPath
+            };
+            blobSasBuilder.SetPermissions(BlobSasPermissions.Create | BlobSasPermissions.Write);
+
+            var connectionBuilder = new System.Data.Common.DbConnectionStringBuilder();
+            connectionBuilder.ConnectionString = _configuration.AuthenticationKey;
+            var ssk = new StorageSharedKeyCredential(_containerClient.AccountName, connectionBuilder["AccountKey"] as string);
+            var sasQueryParameters = blobSasBuilder.ToSasQueryParameters(ssk).ToString();
+
+            var uri = new UriBuilder()
+            {
+                Scheme = "https",
+                Host = string.Format("{0}.blob.core.windows.net", _containerClient.AccountName),
+                Path = string.Format("{0}/{1}", _configuration.StoreName, objectPath),
+                Query = sasQueryParameters
+            };
+
+            var response = new SignedUrlResponse
+            {
+                Url = uri.ToString(),
+                Parameters = new Dictionary<string, string>
+                {
+                    { "x-ms-blob-type", "BlockBlob" }
+                }
+            };
+
+            return await Task.FromResult(response);
         }
 
         public async Task<bool> ExistsAsync(string objectName)

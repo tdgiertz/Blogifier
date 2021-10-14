@@ -16,5 +16,8 @@ namespace Blogifier.Files.Models
         public string? ThumbnailBasePath { get; set; }
         [NotNull]
         public string? PublicUrlTemplate { get; set; }
+        [NotNull]
+        public int UrlExpirationMinutes { get; set; }
+        public string? AccountId { get; set; }
     }
 }

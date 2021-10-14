@@ -23,9 +23,9 @@
                         @foreach (var file in _filesToUpload)
                         {
                             <li>
-                                File: @file.Name
+                                File: @file.Filename
                                 <br>
-                                @if (FileUpload(_uploadResults, file.Name, _logger, out var result))
+                                @if (FileUpload(_uploadResults, file.Filename, _logger, out var result))
                                 {
                                     <span>
                                         Stored File Name: @result.Filename
@@ -119,7 +119,7 @@
 
     private IList<FileModel> _files;
     private FileSearchModel _fileSearchModel = new();
-    private List<File> _filesToUpload = new();
+    private List<FileModel> _filesToUpload = new();
     private List<FileModel> _uploadResults = new();
     private int _maxAllowedFiles = 100;
     private bool _shouldRender;
@@ -136,7 +136,7 @@
     private async Task LoadAsync()
     {
         _fileSearchModel.PagingDescriptor ??= new PagingDescriptor(1, 20);
-        var response = await _http.PostAsJsonAsync($"api/upload/list/", _fileSearchModel);
+        var response = await _http.PostAsJsonAsync($"api/file/list/", _fileSearchModel);
         var result = await response.Content.ReadFromJsonAsync<PagedResult<FileModel>>();
         _fileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
         _files = result.Results;
@@ -148,7 +148,7 @@
     {
         try
         {
-            var response = await _http.DeleteAsync($"api/upload/{id}");
+            var response = await _http.DeleteAsync($"api/file/{id}");
             if(await HandleBoolResult(response))
             {
                 var toRemove = _files.FirstOrDefault(f => f.Id == id);
@@ -173,7 +173,7 @@
             var model = _files.FirstOrDefault(f => f.Id == id);
             if(model != null)
             {
-                var response = await _http.PutAsJsonAsync($"api/upload", model);
+                var response = await _http.PutAsJsonAsync($"api/file", model);
                 if(await HandleBoolResult(response))
                 {
                     ChangeEditState(id, false);
@@ -242,14 +242,24 @@
             {
                 try
                 {
-                    var fileContent = new StreamContent(file.OpenReadStream(long.MaxValue));
+                    var model = new FileModel
+                    {
+                        Filename = file.Name,
+                        MimeType = file.ContentType
+                    };
+
+                    _filesToUpload.Insert(0, model);
+
+                    Action<long, double> onProgress = (long length, double percentage) => { Console.WriteLine(percentage); };
+
+                    var fileContent = new ProgressiveStreamContent(file.OpenReadStream(long.MaxValue), 32 * 1024, onProgress);
 
                     if (!string.IsNullOrEmpty(file.ContentType))
                     {
                         fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
                     }
 
-                    _filesToUpload.Add(new() { Name = file.Name });
+                    //_filesToUpload.Add(new() { Name = file.Name });
 
                     content.Add(fileContent, "\"files\"", file.Name);
 
@@ -271,7 +281,7 @@
 
         if (upload)
         {
-            var response = await _http.PostAsync("api/upload", content);
+            var response = await _http.PostAsync("api/file", content);
 
             var new_uploadResults = await response.Content.ReadFromJsonAsync<IList<FileModel>>();
 
@@ -298,13 +308,9 @@
         return result.IsSuccessful;
     }
 
-    private class File
-    {
-        public string Name { get; set; }
-    }
-
     public class ProgressiveStreamContent : StreamContent
     {
+        public event Action<long, double> OnProgress;
         private readonly System.IO.Stream _fileStream;
         private readonly int _maxBuffer = 1024 * 4;
 
@@ -314,8 +320,6 @@
             _maxBuffer = maxBuffer;
             OnProgress += onProgress;
         }
-
-        public event Action<long, double> OnProgress;
 
         protected async override Task SerializeToStreamAsync(System.IO.Stream stream, System.Net.TransportContext context)
         {
@@ -341,10 +345,9 @@
 
                     OnProgress?.Invoke(uploadedByteCount, percentage);
 
-                    await Task.Delay(250);
+                    @* await Task.Delay(250); *@
                 }
             }
         }
-
     }
 }

@@ -6,8 +6,11 @@ using Blogifier.Files.Extensions;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
 using Blogifier.Shared;
+using Blogifier.Shared.Models;
 using Google;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Iam.v1;
+using Google.Apis.Services;
 using Google.Cloud.Storage.V1;
 using Microsoft.AspNetCore.Http;
 using MimeMapping;
@@ -15,10 +18,12 @@ using Serilog;
 
 namespace Blogifier.Files.Google
 {
+
     public class GoogleFileStoreProvider : IFileStoreProvider
     {
         private readonly FileStoreConfiguration _configuration;
         private readonly StorageClient _storageClient;
+        private readonly UrlSigner? _urlSigner;
 
         public GoogleFileStoreProvider(FileStoreConfiguration configuration)
         {
@@ -30,6 +35,10 @@ namespace Blogifier.Files.Google
             if (string.IsNullOrEmpty(configuration.PublicUrlTemplate))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.PublicUrlTemplate)}");
+            }
+            if (configuration.UrlExpirationMinutes <= 0)
+            {
+                throw new System.ArgumentException("Argument property invalid", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.UrlExpirationMinutes)}");
             }
             if (string.IsNullOrEmpty(configuration.ThumbnailBasePath))
             {
@@ -50,10 +59,46 @@ namespace Blogifier.Files.Google
                     ? GoogleCredential.FromFile(configuration.AuthenticationKey)
                     : GoogleCredential.FromJson(configuration.AuthenticationKey);
             }
+            else
+            {
+                googleCredential = GoogleCredential.GetApplicationDefault();
+            }
+
+            if(!string.IsNullOrEmpty(configuration.AccountId))
+            {
+                var iamService = new IamService(new BaseClientService.Initializer
+                {
+                    HttpClientInitializer = googleCredential
+                });
+                var blobSigner = new IamServiceBlobSigner(iamService, configuration.AccountId);
+                _urlSigner = UrlSigner.FromBlobSigner(blobSigner);
+            }
 
             _storageClient = StorageClient.Create(googleCredential);
 
             _configuration = configuration;
+        }
+
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        {
+            if(_urlSigner == null)
+            {
+                throw new InvalidOperationException();
+            }
+            var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
+
+            var requestTemplate = UrlSigner.RequestTemplate
+                .FromBucket(_configuration.StoreName)
+                .WithHttpMethod(System.Net.Http.HttpMethod.Put)
+                .WithObjectName(objectPath);
+
+            var url = await _urlSigner.SignAsync(_configuration.StoreName, objectPath, TimeSpan.FromMinutes(_configuration.UrlExpirationMinutes), System.Net.Http.HttpMethod.Put);
+
+            return new SignedUrlResponse
+            {
+                Url = url,
+                Parameters = new Dictionary<string, string> { }
+            };
         }
 
         public async Task<bool> ExistsAsync(string objectName)

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using MimeMapping;
 using Serilog;
 using Blogifier.Files.Extensions;
+using Blogifier.Shared.Models;
 
 namespace Blogifier.Files.Aws
 {
@@ -71,6 +72,26 @@ namespace Blogifier.Files.Aws
             {
                 configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
             }
+        }
+
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        {
+            var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
+
+            var urlRequest = new GetPreSignedUrlRequest
+            {
+                Key = objectPath,
+                Verb = HttpVerb.PUT,
+                BucketName = _configuration.StoreName,
+                Expires = DateTime.Now.AddMinutes(_configuration.UrlExpirationMinutes)
+            };
+            var url = _storageClient.GetPreSignedURL(urlRequest);
+
+            return new SignedUrlResponse
+            {
+                Url = url,
+                Parameters = new Dictionary<string, string> { }
+            };
         }
 
         public async Task<bool> ExistsAsync(string objectName)
