@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Blogifier.Files;
 using Blogifier.Shared;
+using Blogifier.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -75,6 +76,28 @@ namespace Blogifier.Controllers
         public async Task<ActionResult<FileSyncronizationModel>> Syncronize()
         {
             return await _fileManager.SyncronizeAsync();
+        }
+
+        [HttpPost("SignedUrl")]
+        public async Task<ActionResult<SignedUrlResponse>> GetSignedUrl([FromBody] SignedUrlRequest request)
+        {
+            if(string.IsNullOrEmpty(request.Filename))
+            {
+                return BadRequest();
+            }
+            return await _fileManager.GetSignedUrlAsync(request);
+        }
+
+        [HttpGet("SetPublic/{id:Guid}")]
+        public async Task<ActionResult<bool>> SetObjectPublic(Guid id)
+        {
+            return await _fileManager.SetObjectPublic(id);
+        }
+
+        [HttpGet("Exists/{filename}")]
+        public async Task<ActionResult<bool>> Exists(string filename)
+        {
+            return await _fileManager.ExistsAsync(filename);
         }
     }
 }

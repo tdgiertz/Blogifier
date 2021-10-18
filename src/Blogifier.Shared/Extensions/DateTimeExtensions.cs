@@ -2,7 +2,7 @@
 
 namespace Blogifier.Shared
 {
-	public static class DateTimeExtensions
+    public static class DateTimeExtensions
 	{
       public static string ToFriendlyDateTimeString(this DateTime Date)
       {

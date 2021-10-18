@@ -29,6 +29,12 @@ namespace Blogifier.Core.Providers.MongoDb
             return await _fileCollection.Find(f => f.Id == id).SingleOrDefaultAsync();
         }
 
+        public async Task<bool> ExistsAsync(string filePath)
+        {
+            var count = await _fileCollection.Find(f => f.RelativePath == filePath).CountDocumentsAsync();
+            return count > 0;
+        }
+
         public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(PagingDescriptor pagingDescriptor, string searchTerm)
         {
             var builder = Builders<FileDescriptor>.Filter;

@@ -12,6 +12,7 @@ namespace Blogifier.Files.Providers
         Task<bool> InsertAsync(FileDescriptor fileDescriptor);
         Task<bool> UpdateAsync(FileDescriptor fileDescriptor);
         Task<bool> DeleteAsync(Guid id);
+        Task<bool> ExistsAsync(string filePath);
         Task<IEnumerable<FileDescriptor>> ListAsync();
     }
 }

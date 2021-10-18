@@ -1,3 +1,4 @@
+using Blogifier.Admin.Serivces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,8 @@ namespace Blogifier.Admin
 			builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 			builder.Services.AddScoped<AuthenticationStateProvider, BlogAuthenticationStateProvider>();
+            builder.Services.AddScoped<IFileService, FileService>();
+            builder.Services.AddScoped<IUploadFileService, UploadFileService>();
 
 			builder.Services.AddToaster(config =>
 			{

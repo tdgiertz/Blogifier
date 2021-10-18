@@ -85,20 +85,49 @@ namespace Blogifier.Files.Google
             {
                 throw new InvalidOperationException();
             }
+
             var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
+
+            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(request.Filename);
 
             var requestTemplate = UrlSigner.RequestTemplate
                 .FromBucket(_configuration.StoreName)
                 .WithHttpMethod(System.Net.Http.HttpMethod.Put)
-                .WithObjectName(objectPath);
+                .WithObjectName(objectPath)
+                .WithRequestHeaders(new Dictionary<string, IEnumerable<string>>
+                {
+                    { "Content-Type", new [] { mimeType } }
+                });
 
-            var url = await _urlSigner.SignAsync(_configuration.StoreName, objectPath, TimeSpan.FromMinutes(_configuration.UrlExpirationMinutes), System.Net.Http.HttpMethod.Put);
+            var options = UrlSigner.Options.FromDuration(TimeSpan.FromMinutes(_configuration.UrlExpirationMinutes));
+            options.WithSigningVersion(SigningVersion.V4);
+
+            var url = await _urlSigner.SignAsync(requestTemplate, options);
 
             return new SignedUrlResponse
             {
                 Url = url,
-                Parameters = new Dictionary<string, string> { }
+                FileModel = new FileModel
+                {
+                    Filename = request.Filename,
+                    Url = _configuration.ReplacePublicUrlTemplateValues(request.Filename, objectPath),
+                    MimeType = mimeType,
+                    RelativePath = objectPath,
+                },
+                Parameters = new Dictionary<string, string>
+                {
+                    { "Content-Type", mimeType }
+                },
+                DoesRequirePermissionUpdate = true
             };
+        }
+
+        public async Task SetObjectPublic(string objectName)
+        {
+            var objectPath = Path.Combine(_configuration.BasePath, objectName);
+            var storageObject = await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
+
+            await _storageClient.UpdateObjectAsync(storageObject, new UpdateObjectOptions { PredefinedAcl = PredefinedObjectAcl.PublicRead });
         }
 
         public async Task<bool> ExistsAsync(string objectName)

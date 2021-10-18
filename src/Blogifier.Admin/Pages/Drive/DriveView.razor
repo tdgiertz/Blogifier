@@ -1,9 +1,8 @@
 @page "/admin/drive/"
 @using System.Linq
-@using System.Net.Http.Headers
-@using Microsoft.Extensions.Logging
-@inject HttpClient _http
-@inject ILogger<DriveView> _logger
+@using Blogifier.Admin.Components.Drive;
+@using Models
+@using Serivces
 @inject IStringLocalizer<Resource> _localizer
 
 <div class="container">
@@ -15,33 +14,15 @@
             </label>
         </p>
 
-        @if (_filesToUpload.Count > 0)
+        @if (_filesToUpload != null && _filesToUpload.Count() > 0)
         {
-            <div class="card">
-                <div class="card-body">
-                    <ul>
-                        @foreach (var file in _filesToUpload)
-                        {
-                            <li>
-                                File: @file.Filename
-                                <br>
-                                @if (FileUpload(_uploadResults, file.Filename, _logger, out var result))
-                                {
-                                    <span>
-                                        Stored File Name: @result.Filename
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span>
-                                        There was an error uploading the file '@result.Message'.
-                                    </span>
-                                }
-                            </li>
-                        }
-                    </ul>
-                </div>
-            </div>
+            <ul class="list-group" aria-label="files">
+                <Virtualize Items="_filesToUpload" Context="file">
+                    <li class="list-group-item upload-file-item">
+                        <FileComponent File="file.Value.FileModel" UploadState="file.Value.UploadState" OnDelete="(id) => RemoveUploadFile(file)"></FileComponent>
+                    </li>
+                </Virtualize>
+            </ul>
         }
 
         @if (_files != null && _files.Count() > 0)
@@ -49,62 +30,7 @@
             <ul class="list-group" aria-label="files">
                 <Virtualize Items="_files" Context="file">
                     <li class="list-group-item">
-                        @if(IsEditing(file.Id))
-                        {
-                            <div class="row">
-                                <div class="col-10">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h4 class="mb-1">@file.Filename</h4>
-                                        <label>@file.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
-                                    </div>
-                                    <textarea class="form-control" @bind="file.Description" rows="1" placeholder="@_localizer["type-here"]"></textarea>
-                                </div>
-                                <div class="col-2 align-self-center text-end">
-                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Save" @onclick="async () => await SaveAsync(file.Id)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2" viewBox="0 0 16 16">
-                                            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
-                                        </svg>
-                                    </button>
-                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Cancel" @onclick="() => ChangeEditState(file.Id, false)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                                        </svg>
-                                    </button>
-                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Delete" @onclick="async () => await DeleteAsync(file.Id)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="row">
-                                <div class="col-10">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h4 class="mb-1">@file.Filename</h4>
-                                        <label>@file.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
-                                    </div>
-                                    <p class="text-muted mt-1">@file.Description</p>
-                                </div>
-                                <div class="col-2 align-self-center text-end">
-                                    <button class="btn btn-sm btn-blogifier" data-bs-toggle="tooltip" title="Edit" @onclick="() => ChangeEditState(file.Id, true)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
-                                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
-                                            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z" />
-                                        </svg>
-                                    </button>
-                                    <button class="btn btn-sm btn-default" data-bs-toggle="tooltip" title="Delete" @onclick="async () => await DeleteAsync(file.Id)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        }
+                        <FileComponent File="file" OnDelete="(id) => RemoveFile(file)"></FileComponent>
                     </li>
                 </Virtualize>
             </ul>
@@ -115,113 +41,39 @@
 
 @code {
     [Inject]
-    protected Sotsera.Blazor.Toaster.IToaster Toaster { get; set; }
+    protected IFileService FileService { get; set; }
+    [Inject]
+    protected IUploadFileService UploadFileService { get; set; }
 
     private IList<FileModel> _files;
     private FileSearchModel _fileSearchModel = new();
-    private List<FileModel> _filesToUpload = new();
-    private List<FileModel> _uploadResults = new();
+    private System.Collections.Concurrent.ConcurrentDictionary<string, UploadFileModel> _filesToUpload = new();
     private int _maxAllowedFiles = 100;
-    private bool _shouldRender;
-    private Dictionary<Guid, bool> IsEditingLookup = new();
-
-    protected override bool ShouldRender() => _shouldRender;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-        _shouldRender = true;
     }
 
     private async Task LoadAsync()
     {
-        _fileSearchModel.PagingDescriptor ??= new PagingDescriptor(1, 20);
-        var response = await _http.PostAsJsonAsync($"api/file/list/", _fileSearchModel);
-        var result = await response.Content.ReadFromJsonAsync<PagedResult<FileModel>>();
+        var result = await FileService.GetListAsync(_fileSearchModel);
         _fileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
         _files = result.Results;
-        IsEditingLookup = _files.ToDictionary(k => k.Id, v => false);
         StateHasChanged();
     }
 
-    private async Task DeleteAsync(Guid id)
+    private void RemoveFile(FileModel model)
     {
-        try
+        if (model != null)
         {
-            var response = await _http.DeleteAsync($"api/file/{id}");
-            if(await HandleBoolResult(response))
-            {
-                var toRemove = _files.FirstOrDefault(f => f.Id == id);
-                if(toRemove != null)
-                {
-                    _files.Remove(toRemove);
-                }
-                IsEditingLookup.Remove(id);
-            }
-        }
-        catch(Exception ex)
-        {
-            _logger.LogError(ex, "An error occurred on file delete");
-            Toaster.Error(_localizer["generic-error"]);
+            _files.Remove(model);
         }
     }
 
-    private async Task SaveAsync(Guid id)
+    private void RemoveUploadFile(KeyValuePair<string, UploadFileModel> entry)
     {
-        try
-        {
-            var model = _files.FirstOrDefault(f => f.Id == id);
-            if(model != null)
-            {
-                var response = await _http.PutAsJsonAsync($"api/file", model);
-                if(await HandleBoolResult(response))
-                {
-                    ChangeEditState(id, false);
-                }
-            }
-        }
-        catch(Exception ex)
-        {
-            _logger.LogError(ex, "An error occurred on file save");
-            Toaster.Error(_localizer["generic-error"]);
-        }
-    }
-
-    private async Task<bool> HandleBoolResult(HttpResponseMessage response)
-    {
-        var isSuccessful = false;
-        if(response.IsSuccessStatusCode)
-        {
-            isSuccessful = await response.Content.ReadFromJsonAsync<bool>();
-        }
-        if(isSuccessful)
-        {
-            Toaster.Success(_localizer["completed"]);
-        }
-        else
-        {
-            Toaster.Error(_localizer["generic-error"]);
-        }
-
-        return isSuccessful;
-    }
-
-    private void ChangeEditState(Guid id, bool isEditing)
-    {
-        if(IsEditingLookup.ContainsKey(id))
-        {
-            IsEditingLookup[id] = isEditing;
-        }
-    }
-
-    private bool IsEditing(Guid id)
-    {
-        if(IsEditingLookup.ContainsKey(id))
-        {
-            return IsEditingLookup[id];
-        }
-
-        return false;
+        _filesToUpload.TryRemove(entry);
     }
 
     private async Task OnPageChanged(int pageNumber)
@@ -231,123 +83,26 @@
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
     {
-        _shouldRender = false;
-        var upload = false;
-
-        using var content = new MultipartFormDataContent();
-
-        foreach (var file in e.GetMultipleFiles(_maxAllowedFiles))
+        try
         {
-            if (_uploadResults.SingleOrDefault(f => f.Filename == file.Name) is null)
+            var files = e.GetMultipleFiles(_maxAllowedFiles);
+            var distinctFiles = files.Where(f => !_filesToUpload.ContainsKey(f.Name));
+            var uploadFileModels = await UploadFileService.SetupNewFilesAsync(distinctFiles, uploadFileModel =>
             {
-                try
+                if (!_filesToUpload.TryAdd(uploadFileModel.FileModel.Filename, uploadFileModel))
                 {
-                    var model = new FileModel
-                    {
-                        Filename = file.Name,
-                        MimeType = file.ContentType
-                    };
-
-                    _filesToUpload.Insert(0, model);
-
-                    Action<long, double> onProgress = (long length, double percentage) => { Console.WriteLine(percentage); };
-
-                    var fileContent = new ProgressiveStreamContent(file.OpenReadStream(long.MaxValue), 32 * 1024, onProgress);
-
-                    if (!string.IsNullOrEmpty(file.ContentType))
-                    {
-                        fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
-                    }
-
-                    //_filesToUpload.Add(new() { Name = file.Name });
-
-                    content.Add(fileContent, "\"files\"", file.Name);
-
-                    upload = true;
+                    uploadFileModel.FileModel.IsSuccessful = false;
+                    uploadFileModel.FileModel.Message = "File upload failed";
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogInformation("{FileName} upload failed. {Message}", file.Name, ex.Message);
+            });
 
-                    _uploadResults.Add(
-                    new()
-                    {
-                        Filename = file.Name,
-                        Message = "File upload failed"
-                    });
-                }
-            }
+            var uploadFileModelsAsync = UploadFileService.GetUploadFileModelsAsync(uploadFileModels.AsReadOnly());
+            await uploadFileModelsAsync.AsyncParallelForEach(model => UploadFileService.UploadWithSignedUrlAsync(model, () => StateHasChanged()), 5);
         }
-
-        if (upload)
+        catch(Exception)
         {
-            var response = await _http.PostAsync("api/file", content);
-
-            var new_uploadResults = await response.Content.ReadFromJsonAsync<IList<FileModel>>();
-
-            _uploadResults = _uploadResults.Concat(new_uploadResults).ToList();
+            //
         }
-
-        _shouldRender = true;
     }
 
-    private static bool FileUpload(IList<FileModel> _uploadResults, string fileName, ILogger<DriveView> logger, out FileModel result)
-    {
-        result = _uploadResults.SingleOrDefault(f => f.Filename == fileName);
-
-        if (result is null)
-        {
-            logger.LogInformation("{FileName} upload failed", fileName);
-            result = new()
-            {
-                Filename = fileName,
-                Message = "File upload failed"
-            };
-        }
-
-        return result.IsSuccessful;
-    }
-
-    public class ProgressiveStreamContent : StreamContent
-    {
-        public event Action<long, double> OnProgress;
-        private readonly System.IO.Stream _fileStream;
-        private readonly int _maxBuffer = 1024 * 4;
-
-        public ProgressiveStreamContent(System.IO.Stream stream, int maxBuffer, Action<long, double> onProgress) : base(stream)
-        {
-            _fileStream = stream;
-            _maxBuffer = maxBuffer;
-            OnProgress += onProgress;
-        }
-
-        protected async override Task SerializeToStreamAsync(System.IO.Stream stream, System.Net.TransportContext context)
-        {
-            var buffer = new byte[_maxBuffer];
-            var totalLength = _fileStream.Length;
-            var uploadedByteCount = 0L;
-
-            while (true)
-            {
-                using (_fileStream)
-                {
-                    var length = await _fileStream.ReadAsync(buffer, 0, _maxBuffer);
-
-                    if (length <= 0)
-                    {
-                        break;
-                    }
-
-                    uploadedByteCount += length;
-                    var percentage = Convert.ToDouble(uploadedByteCount * 100 / _fileStream.Length);
-
-                    await stream.WriteAsync(buffer);
-
-                    OnProgress?.Invoke(uploadedByteCount, percentage);
-
-                    @* await Task.Delay(250); *@
-                }
-            }
-        }
-    }
 }

@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Azure.Storage;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
+using Blogifier.Files.Extensions;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
 using Blogifier.Shared;
@@ -45,41 +46,46 @@ namespace Blogifier.Files.Azure
         public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
         {
             var clockSkew = TimeSpan.FromSeconds(5);
-
             var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
+            var blobClient = _containerClient.GetBlobClient(objectPath);
 
             var blobSasBuilder = new BlobSasBuilder
             {
                 StartsOn = DateTime.UtcNow.Subtract(clockSkew),
                 ExpiresOn = DateTime.UtcNow.Add(TimeSpan.FromMinutes(_configuration.UrlExpirationMinutes)) + clockSkew,
                 BlobContainerName = _configuration.StoreName,
-                BlobName = objectPath
+                BlobName = blobClient.Name
             };
             blobSasBuilder.SetPermissions(BlobSasPermissions.Create | BlobSasPermissions.Write);
 
-            var connectionBuilder = new System.Data.Common.DbConnectionStringBuilder();
-            connectionBuilder.ConnectionString = _configuration.AuthenticationKey;
-            var ssk = new StorageSharedKeyCredential(_containerClient.AccountName, connectionBuilder["AccountKey"] as string);
-            var sasQueryParameters = blobSasBuilder.ToSasQueryParameters(ssk).ToString();
+            var uri = blobClient.GenerateSasUri(blobSasBuilder);
 
-            var uri = new UriBuilder()
-            {
-                Scheme = "https",
-                Host = string.Format("{0}.blob.core.windows.net", _containerClient.AccountName),
-                Path = string.Format("{0}/{1}", _configuration.StoreName, objectPath),
-                Query = sasQueryParameters
-            };
+            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(request.Filename);
 
             var response = new SignedUrlResponse
             {
                 Url = uri.ToString(),
+                FileModel = new FileModel
+                {
+                    Filename = request.Filename,
+                    Url = _configuration.ReplacePublicUrlTemplateValues(request.Filename, objectPath, _containerClient.AccountName),
+                    MimeType = mimeType,
+                    RelativePath = objectPath,
+                },
                 Parameters = new Dictionary<string, string>
                 {
-                    { "x-ms-blob-type", "BlockBlob" }
-                }
+                    { "x-ms-blob-type", "BlockBlob" },
+                    { "Content-Type", mimeType }
+                },
+                DoesRequirePermissionUpdate = false
             };
 
             return await Task.FromResult(response);
+        }
+
+        public async Task SetObjectPublic(string objectName)
+        {
+            await Task.CompletedTask;
         }
 
         public async Task<bool> ExistsAsync(string objectName)
@@ -94,12 +100,21 @@ namespace Blogifier.Files.Azure
             var objectPath = Path.Combine(_configuration.BasePath, filename);
             var mimeType = MimeUtility.GetMimeMapping(filename);
 
-            var result = await _containerClient.UploadBlobAsync(objectPath, formFile.OpenReadStream());
-            var uri = _containerClient.GetBlobClient(filename).Uri;
+            BlobContentInfo result;
+            if(await ExistsAsync(filename))
+            {
+                var blobClient = _containerClient.GetBlobClient(objectPath);
+                result = await blobClient.UploadAsync(formFile.OpenReadStream(), true);
+            }
+            else
+            {
+                result = await _containerClient.UploadBlobAsync(objectPath, formFile.OpenReadStream());
+            }
 
             return new FileResult
             {
-                Url = uri.AbsolutePath,
+                Url = _configuration.ReplacePublicUrlTemplateValues(filename, objectPath, _containerClient.AccountName),
+                Path = objectPath,
                 Filename = filename,
                 MimeType = mimeType,
             };
@@ -129,7 +144,7 @@ namespace Blogifier.Files.Azure
                 var filename = Path.GetFileName(item.Blob.Name);
                 yield return new FileResult
                 {
-                    Url = Flurl.Url.Combine(_containerClient.Uri.AbsoluteUri, item.Blob.Name),
+                    Url = _configuration.ReplacePublicUrlTemplateValues(filename, item.Blob.Name, _containerClient.AccountName),
                     Filename = filename,
                     Path = item.Blob.Name,
                     MimeType = MimeMapping.MimeUtility.GetMimeMapping(filename)

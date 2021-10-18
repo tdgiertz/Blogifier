@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using System.Linq;
 using System.Collections.Generic;
 using Serilog;
+using Blogifier.Shared.Models;
 
 namespace Blogifier.Files
 {
@@ -13,11 +14,38 @@ namespace Blogifier.Files
     {
         private readonly IFileStoreProvider _fileStoreProvider;
         private readonly IFileDescriptorProvider _fileDescriptorProvider;
+        private readonly Models.FileStoreConfiguration _fileStoreConfiguration;
 
-        public FileManager(IFileStoreProvider fileStoreProvider, IFileDescriptorProvider fileDescriptorProvider)
+        public FileManager(IFileStoreProvider fileStoreProvider, IFileDescriptorProvider fileDescriptorProvider, Models.FileStoreConfiguration configuration)
         {
             _fileStoreProvider = fileStoreProvider;
             _fileDescriptorProvider = fileDescriptorProvider;
+            _fileStoreConfiguration = configuration;
+        }
+
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        {
+            var response = await _fileStoreProvider.GetSignedUrlAsync(request);
+
+            var fileDescriptor = response.ToFileDescriptor();
+
+            fileDescriptor.DateCreated = DateTime.UtcNow;
+            fileDescriptor.Id = Guid.NewGuid();
+
+            if(!await _fileDescriptorProvider.InsertAsync(fileDescriptor))
+            {
+                throw new Exception("Failed to create file descriptor");
+            }
+
+            var fileModel = fileDescriptor.ToFileModel();
+
+            fileModel.Url = response.FileModel.Url;
+            fileModel.RelativePath = response.FileModel.RelativePath;
+            fileModel.MimeType = response.FileModel.MimeType;
+
+            response.FileModel = fileModel;
+
+            return response;
         }
 
         public async Task<PagedResult<FileModel>> GetPagedAsync(FileSearchModel searchModel)
@@ -26,7 +54,7 @@ namespace Blogifier.Files
 
             return new PagedResult<FileModel>
             {
-                Results = fileDescriptors.Select(d => ToFileModel(d)).ToList(),
+                Results = fileDescriptors.Select(d => d.ToFileModel()).ToList(),
                 PagingDescriptor = searchModel.PagingDescriptor
             };
         }
@@ -35,48 +63,7 @@ namespace Blogifier.Files
         {
             var fileDescriptor = await _fileDescriptorProvider.GetAsync(id);
 
-            return ToFileModel(fileDescriptor);
-        }
-
-        private static FileModel ToFileModel(FileDescriptor fileDescriptor)
-        {
-            return new FileModel
-            {
-                Id = fileDescriptor.Id,
-                Filename = fileDescriptor.Filename,
-                MimeType = fileDescriptor.MimeType,
-                Url = fileDescriptor.Url,
-                Description = fileDescriptor.Description,
-                DateCreated = fileDescriptor.DateCreated,
-                DateUpdated = fileDescriptor.DateUpdated,
-                IsSuccessful = true
-            };
-        }
-
-        private static FileDescriptor ToFileDescriptor(FileModel fileModel)
-        {
-            return new FileDescriptor
-            {
-                Id = fileModel.Id,
-                Filename = fileModel.Filename,
-                MimeType = fileModel.MimeType,
-                Url = fileModel.Url,
-                Description = fileModel.Description,
-                DateCreated = fileModel.DateCreated,
-                DateUpdated = fileModel.DateUpdated
-            };
-        }
-
-        private static FileDescriptor ToFileDescriptor(FileResult fileResult)
-        {
-            return new FileDescriptor
-            {
-                Id = Guid.NewGuid(),
-                Filename = fileResult.Filename,
-                MimeType = fileResult.MimeType,
-                Url = fileResult.Url,
-                DateCreated = DateTime.UtcNow
-            };
+            return fileDescriptor.ToFileModel();
         }
 
         public async Task<FileModel> CreateAsync(IFormFile formFile)
@@ -86,7 +73,7 @@ namespace Blogifier.Files
             try
             {
                 var fileResult = await _fileStoreProvider.CreateAsync(formFile);
-                fileDescriptor = ToFileDescriptor(fileResult);
+                fileDescriptor = fileResult.ToFileDescriptor();
             }
             catch (Exception ex)
             {
@@ -101,7 +88,7 @@ namespace Blogifier.Files
             try
             {
                 await _fileDescriptorProvider.InsertAsync(fileDescriptor);
-                fileModel = ToFileModel(fileDescriptor);
+                fileModel = fileDescriptor.ToFileModel();
             }
             catch (Exception ex)
             {
@@ -117,9 +104,23 @@ namespace Blogifier.Files
             return fileModel;
         }
 
+        public async Task<bool> SetObjectPublic(Guid id)
+        {
+            var fileDescriptor = await _fileDescriptorProvider.GetAsync(id);
+
+            if(fileDescriptor == null)
+            {
+                return false;
+            }
+
+            await _fileStoreProvider.SetObjectPublic(fileDescriptor.Filename);
+
+            return true;
+        }
+
         public async Task<bool> UpdateAsync(FileModel model)
         {
-            var result = await _fileDescriptorProvider.UpdateAsync(ToFileDescriptor(model));
+            var result = await _fileDescriptorProvider.UpdateAsync(model.ToFileDescriptor());
 
             return result;
         }
@@ -128,14 +129,20 @@ namespace Blogifier.Files
         {
             var fileDescriptor = await _fileDescriptorProvider.GetAsync(id);
 
-            var result = await _fileStoreProvider.DeleteAsync(fileDescriptor.Filename);
+            var result = await _fileDescriptorProvider.DeleteAsync(id);
 
             if (result)
             {
-                result = await _fileDescriptorProvider.DeleteAsync(id);
+                await _fileStoreProvider.DeleteAsync(fileDescriptor.Filename);
             }
 
             return result;
+        }
+
+        public async Task<bool> ExistsAsync(string filename)
+        {
+            var filePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, filename);
+            return await _fileDescriptorProvider.ExistsAsync(filePath);
         }
 
         public async Task<FileSyncronizationModel> SyncronizeAsync()

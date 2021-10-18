@@ -9,6 +9,7 @@ namespace Blogifier.Files.Providers
     public interface IFileStoreProvider
     {
         Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request);
+        Task SetObjectPublic(string objectName);
         Task<bool> ExistsAsync(string objectName);
         Task<FileResult> CreateAsync(IFormFile formFile);
         Task<bool> DeleteAsync(string objectName);

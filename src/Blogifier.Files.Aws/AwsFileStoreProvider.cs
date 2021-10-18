@@ -78,20 +78,51 @@ namespace Blogifier.Files.Aws
         {
             var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
 
+            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(request.Filename);
+
             var urlRequest = new GetPreSignedUrlRequest
             {
                 Key = objectPath,
                 Verb = HttpVerb.PUT,
                 BucketName = _configuration.StoreName,
-                Expires = DateTime.Now.AddMinutes(_configuration.UrlExpirationMinutes)
+                Expires = DateTime.Now.AddMinutes(_configuration.UrlExpirationMinutes),
+                ContentType = mimeType
             };
+
             var url = _storageClient.GetPreSignedURL(urlRequest);
 
-            return new SignedUrlResponse
+            var response = new SignedUrlResponse
             {
                 Url = url,
-                Parameters = new Dictionary<string, string> { }
+                FileModel = new FileModel
+                {
+                    Filename = request.Filename,
+                    Url = _configuration.ReplacePublicUrlTemplateValues(request.Filename, objectPath),
+                    MimeType = mimeType,
+                    RelativePath = objectPath,
+                },
+                Parameters = new Dictionary<string, string>
+                {
+                    { "Content-Type", mimeType }
+                },
+                DoesRequirePermissionUpdate = false
             };
+
+            return await Task.FromResult(response);
+        }
+
+        public async Task SetObjectPublic(string objectName)
+        {
+            var objectPath = Path.Combine(_configuration.BasePath, objectName);
+            var storageObject = await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
+
+            var aclRequest = new PutACLRequest
+            {
+                Key = objectPath,
+                BucketName = _configuration.StoreName,
+                CannedACL = S3CannedACL.PublicRead
+            };
+            await _storageClient.PutACLAsync(aclRequest);
         }
 
         public async Task<bool> ExistsAsync(string objectName)

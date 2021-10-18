@@ -1,0 +1,129 @@
+@using Models
+@using Serivces
+@inject IStringLocalizer<Resource> _localizer
+@inject IJSRuntime _jsruntime
+
+@if(File != null)
+{
+    <div class="row">
+        <div class="col-10">
+            <div class="d-flex w-100 justify-content-between">
+                @if(UploadState.IsUploadPending)
+                {
+                    <input type="text" class="form-control form-control-sm" @bind="File.Filename">
+                }
+                else
+                {
+                    <h4 class="mb-1">@File.Filename</h4>
+                    @if(!UploadState.IsUploading)
+                    {
+                        <label>@File.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
+                    }
+                }
+            </div>
+            @if(UploadState.IsEditing && !UploadState.IsUploading)
+            {
+                <textarea class="form-control form-control-sm" @bind="File.Description" rows="1" placeholder="@_localizer["type-here"]"></textarea>
+            }
+            else
+            {
+                <p class="text-muted mt-1">@File.Description</p>
+            }
+        </div>
+        <div class="col-2 align-self-center">
+            @if(UploadState.IsUploading)
+            {
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: @(UploadState.ProgressPercent)%;" aria-valuenow="@(UploadState.ProgressPercent)" aria-valuemin="0" aria-valuemax="100">@(UploadState.ProgressPercent)%</div>
+                </div>
+            }
+            else
+            {
+                <div class="w-100 btn-group">
+                    @if(UploadState.IsEditing)
+                    {
+                        <button class="btn btn-sm btn-blogifier auto-close-tooltip" data-bs-toggle="tooltip" title="Save" disabled="@IsBusy" @onclick="async () => await SaveAsync()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16">
+                                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z" fill="#000"/>
+                            </svg>
+                        </button>
+                        <button class="btn btn-sm btn-default auto-close-tooltip" data-bs-toggle="tooltip" title="Cancel" disabled="@IsBusy" @onclick="() => SetIsEditing(false)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M13.854 2.146a.5.5 0 0 1 0 .708l-11 11a.5.5 0 0 1-.708-.708l11-11a.5.5 0 0 1 .708 0Z" fill="#000"/>
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M2.146 2.146a.5.5 0 0 0 0 .708l11 11a.5.5 0 0 0 .708-.708l-11-11a.5.5 0 0 0-.708 0Z" fill="#000"/>
+                            </svg>
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-blogifier auto-close-tooltip" data-bs-toggle="tooltip" title="Edit" disabled="@IsBusy" @onclick="() => SetIsEditing(true)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z" />
+                            </svg>
+                        </button>
+                    }
+                    <button class="btn btn-sm btn-default auto-close-tooltip" data-bs-toggle="tooltip" title="Delete" disabled="@(!CanDelete())" @onclick="async () => await DeleteAsync()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                        </svg>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+    @if(!File.IsSuccessful)
+    {
+        <div class="error-panel text-white bg-danger mt-1">
+            @(File.Message ?? "An error occurred")
+        </div>
+    }
+}
+
+@code {
+    [Inject]
+    protected IFileService FileService { get; set; }
+
+    [Parameter]
+    public FileModel File { get; set; }
+    [Parameter]
+    public UploadState UploadState { get; set; } = new();
+    [Parameter]
+    public EventCallback<Guid> OnDelete { get; set; }
+
+    private bool IsBusy;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await _jsruntime.InvokeVoidAsync("commonJsFunctions.setTooltip");
+    }
+
+    private async Task DeleteAsync()
+    {
+        await FileService.DeleteAsync(File.Id, OnDelete, isBusy => SetIsBusy(isBusy));
+    }
+
+    private async Task SaveAsync()
+    {
+        await FileService.SaveAsync(File, isBusy => SetIsBusy(isBusy), isEditing => SetIsEditing(isEditing));
+    }
+
+    private void SetIsEditing(bool isEditing)
+    {
+        UploadState.IsEditing = isEditing;
+        StateHasChanged();
+
+    }
+
+    private void SetIsBusy(bool isBusy)
+    {
+        IsBusy = isBusy;
+        StateHasChanged();
+    }
+
+    private bool CanDelete()
+    {
+        return !IsBusy && !UploadState.IsUploadPending;
+    }
+}

@@ -20,6 +20,11 @@ namespace Blogifier.Files.Providers
             throw new System.NotImplementedException();
         }
 
+        public Task SetObjectPublic(string objectName)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public Task<FileResult> CreateAsync(IFormFile formFile)
         {
             throw new System.NotImplementedException();
