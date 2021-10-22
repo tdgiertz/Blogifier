@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Blogifier.Core.Providers;
@@ -9,7 +10,6 @@ using Xunit;
 
 namespace Blogifier.Tests.MongoDb
 {
-
     public class PostProviderTest : MongoIntegrationTest
     {
         [Fact]
@@ -22,14 +22,32 @@ namespace Blogifier.Tests.MongoDb
         }
 
         [Fact]
+        public async Task Can_Join_Posts_With_Authors()
+        {
+            var provider = GetPostProvider();
+
+            var dbPosts = await _postCollection.Find(_ => true).ToListAsync();
+
+            foreach(var post in dbPosts)
+            {
+                Assert.Null(post.Author);
+            }
+
+            var pager = new Pager(0, 10);
+
+            var posts = await provider.GetList(pager);
+
+            Assert.Equal(4, posts.Count());
+            foreach(var post in posts)
+            {
+                Assert.NotNull(post.Author);
+            }
+        }
+
+        [Fact]
         public async Task Can_Get_Categories()
         {
-            var categoryProvider = new CategoryProvider(_database);
-            var storageProvider = new Mock<IStorageProvider>();
-            storageProvider.Setup(s => s.GetThemeSettings(It.IsAny<string>())).Returns(Task.FromResult(new Shared.ThemeSettings { }));
-            var blogProvider = new BlogProvider(_database, storageProvider.Object, categoryProvider);
-            var authorProvider = new AuthorProvider(_database, _configuration, blogProvider);
-            var provider = new PostProvider(_database, categoryProvider, blogProvider, authorProvider);
+            var provider = GetPostProvider();
 
             var pager = new Pager(1, 2);
 
@@ -41,6 +59,16 @@ namespace Blogifier.Tests.MongoDb
             Assert.Equal(2, posts.Count());
             Assert.NotNull(post1);
             Assert.NotNull(post3);
+        }
+
+        private PostProvider GetPostProvider()
+        {
+            var categoryProvider = new CategoryProvider(_database);
+            var storageProvider = new Mock<IStorageProvider>();
+            storageProvider.Setup(s => s.GetThemeSettings(It.IsAny<string>())).Returns(Task.FromResult(new Shared.ThemeSettings { }));
+            var blogProvider = new BlogProvider(_database, storageProvider.Object, categoryProvider);
+            var authorProvider = new AuthorProvider(_database, _configuration, blogProvider);
+            return new PostProvider(_database, categoryProvider, blogProvider, authorProvider);
         }
     }
 }
