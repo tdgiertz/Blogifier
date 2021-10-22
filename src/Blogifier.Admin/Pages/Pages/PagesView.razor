@@ -68,7 +68,7 @@
     </div>
 
     <div class="list-search collapse" id="collapseSearch">
-        <input @bind="SearchTerm" @onkeyup="SearchKeyPress" class="list-search-input" type="search">
+        <input @bind="SearchTerm" @onkeyup="SearchKeyPress" class="list-search-input" type="search" autofocus>
         <button @onclick="(async () => await SearchPosts())" class="list-search-button" type="button">
             @_localizer["search"]
         </button>

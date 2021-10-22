@@ -7,5 +7,6 @@ namespace Blogifier.Admin.Models
         public UploadState UploadState {get;set;}
         public FileModel FileModel { get; set; }
         public System.IO.Stream FileStream { get; set; }
+        public System.IO.Stream ThumbnailStream { get; set; }
     }
 }

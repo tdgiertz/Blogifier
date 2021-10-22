@@ -29,6 +29,11 @@ namespace Blogifier.Core.Providers.MongoDb
             return await _fileCollection.Find(f => f.Id == id).SingleOrDefaultAsync();
         }
 
+        public async Task<FileDescriptor> GetAsync(string filePath)
+        {
+            return await _fileCollection.Find(f => f.RelativePath == filePath).SingleOrDefaultAsync();
+        }
+
         public async Task<bool> ExistsAsync(string filePath)
         {
             var count = await _fileCollection.Find(f => f.RelativePath == filePath).CountDocumentsAsync();
@@ -74,7 +79,8 @@ namespace Blogifier.Core.Providers.MongoDb
                 .Set(d => d.MimeType, fileDescriptor.MimeType)
                 .Set(d => d.Description, fileDescriptor.Description)
                 .Set(d => d.Filename, fileDescriptor.Filename)
-                .Set(d => d.Url, fileDescriptor.Url)
+                .Set(d => d.RelativePath, fileDescriptor.RelativePath)
+                .Set(d => d.ThumbnailRelativePath, fileDescriptor.ThumbnailRelativePath)
                 .Set(d => d.DateUpdated, DateTime.UtcNow);
 
             var result = await _fileCollection.UpdateOneAsync(d => d.Id == fileDescriptor.Id, update);

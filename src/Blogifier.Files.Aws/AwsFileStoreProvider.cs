@@ -8,10 +8,8 @@ using System.Threading.Tasks;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
 using Blogifier.Shared;
-using Microsoft.AspNetCore.Http;
 using MimeMapping;
 using Serilog;
-using Blogifier.Files.Extensions;
 using Blogifier.Shared.Models;
 
 namespace Blogifier.Files.Aws
@@ -74,32 +72,32 @@ namespace Blogifier.Files.Aws
             }
         }
 
-        public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        public string GetAccountName()
         {
-            var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
+            return string.Empty;
+        }
 
-            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(request.Filename);
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(GenerateSignedUrl generateSignedUrl)
+        {
+            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(generateSignedUrl.Filename);
 
-            var urlRequest = new GetPreSignedUrlRequest
+            var url = GenerateSignedUrl(generateSignedUrl.FilePath, mimeType);
+            string? thumbnailUrl = null;
+
+            if(!string.IsNullOrEmpty(generateSignedUrl.ThumbnailFilePath))
             {
-                Key = objectPath,
-                Verb = HttpVerb.PUT,
-                BucketName = _configuration.StoreName,
-                Expires = DateTime.Now.AddMinutes(_configuration.UrlExpirationMinutes),
-                ContentType = mimeType
-            };
-
-            var url = _storageClient.GetPreSignedURL(urlRequest);
+                thumbnailUrl = GenerateSignedUrl(generateSignedUrl.ThumbnailFilePath, mimeType);
+            }
 
             var response = new SignedUrlResponse
             {
                 Url = url,
+                ThumbnailUrl = thumbnailUrl,
                 FileModel = new FileModel
                 {
-                    Filename = request.Filename,
-                    Url = _configuration.ReplacePublicUrlTemplateValues(request.Filename, objectPath),
+                    Filename = generateSignedUrl.Filename,
                     MimeType = mimeType,
-                    RelativePath = objectPath,
+                    RelativePath = generateSignedUrl.FilePath,
                 },
                 Parameters = new Dictionary<string, string>
                 {
@@ -111,9 +109,24 @@ namespace Blogifier.Files.Aws
             return await Task.FromResult(response);
         }
 
-        public async Task SetObjectPublic(string objectName)
+        private string GenerateSignedUrl(string filePath, string mimeType)
         {
-            var objectPath = Path.Combine(_configuration.BasePath, objectName);
+            var urlRequest = new GetPreSignedUrlRequest
+            {
+                Key = filePath,
+                Verb = HttpVerb.PUT,
+                BucketName = _configuration.StoreName,
+                Expires = DateTime.Now.AddMinutes(_configuration.UrlExpirationMinutes),
+                ContentType = mimeType
+            };
+
+            var url = _storageClient.GetPreSignedURL(urlRequest);
+
+            return url;
+        }
+
+        public async Task SetObjectPublic(string objectPath)
+        {
             var storageObject = await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
 
             var aclRequest = new PutACLRequest
@@ -125,11 +138,10 @@ namespace Blogifier.Files.Aws
             await _storageClient.PutACLAsync(aclRequest);
         }
 
-        public async Task<bool> ExistsAsync(string objectName)
+        public async Task<bool> ExistsAsync(string objectPath)
         {
             try
             {
-                var objectPath = Path.Combine(_configuration.BasePath, objectName);
                 await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
 
                 return false;
@@ -145,15 +157,14 @@ namespace Blogifier.Files.Aws
             }
         }
 
-        public async Task<FileResult> CreateAsync(IFormFile formFile)
+        public async Task<FileResult> CreateAsync(string objectPath, Stream stream)
         {
-            var filename = Path.GetFileName(formFile.FileName);
-            var objectPath = Path.Combine(_configuration.BasePath, filename);
+            var filename = Path.GetFileName(objectPath);
             var mimeType = MimeUtility.GetMimeMapping(filename);
 
             var uploadRequest = new TransferUtilityUploadRequest
             {
-                InputStream = formFile.OpenReadStream(),
+                InputStream = stream,
                 Key = objectPath,
                 BucketName = _configuration.StoreName,
                 CannedACL = S3CannedACL.PublicRead,
@@ -164,18 +175,16 @@ namespace Blogifier.Files.Aws
 
             return new FileResult
             {
-                Url = _configuration.ReplacePublicUrlTemplateValues(filename, objectPath),
                 Filename = filename,
                 Path = objectPath,
                 MimeType = mimeType
             };
         }
 
-        public async Task<bool> DeleteAsync(string objectName)
+        public async Task<bool> DeleteAsync(string objectPath)
         {
             try
             {
-                var objectPath = Path.Combine(_configuration.BasePath, objectName);
                 await _storageClient.DeleteObjectAsync(_configuration.StoreName, objectPath);
 
                 return true;
@@ -200,7 +209,6 @@ namespace Blogifier.Files.Aws
                 var mimeType = MimeUtility.GetMimeMapping(filename);
                 yield return new FileResult
                 {
-                    Url = _configuration.ReplacePublicUrlTemplateValues(filename, s3Object.Key),
                     Filename = filename,
                     Path = s3Object.Key,
                     MimeType = mimeType

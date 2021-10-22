@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Blogifier.Files.Extensions;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
 using Blogifier.Shared;
@@ -12,7 +11,6 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Iam.v1;
 using Google.Apis.Services;
 using Google.Cloud.Storage.V1;
-using Microsoft.AspNetCore.Http;
 using MimeMapping;
 using Serilog;
 
@@ -79,21 +77,52 @@ namespace Blogifier.Files.Google
             _configuration = configuration;
         }
 
-        public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        public string GetAccountName()
+        {
+            return string.Empty;
+        }
+
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(GenerateSignedUrl generateSignedUrl)
+        {
+            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(generateSignedUrl.Filename);
+
+            var url = await GenerateSignedUrlAsync(generateSignedUrl.FilePath, mimeType);
+            string? thumbnailUrl = null;
+
+            if(!string.IsNullOrEmpty(generateSignedUrl.ThumbnailFilePath))
+            {
+                thumbnailUrl = await GenerateSignedUrlAsync(generateSignedUrl.ThumbnailFilePath, mimeType);
+            }
+
+            return new SignedUrlResponse
+            {
+                Url = url,
+                ThumbnailUrl = thumbnailUrl,
+                FileModel = new FileModel
+                {
+                    Filename = generateSignedUrl.Filename,
+                    MimeType = mimeType,
+                    RelativePath = generateSignedUrl.FilePath,
+                },
+                Parameters = new Dictionary<string, string>
+                {
+                    { "Content-Type", mimeType }
+                },
+                DoesRequirePermissionUpdate = true
+            };
+        }
+
+        private async Task<string> GenerateSignedUrlAsync(string filePath, string mimeType)
         {
             if(_urlSigner == null)
             {
                 throw new InvalidOperationException();
             }
 
-            var objectPath = Path.Combine(_configuration.BasePath, request.Filename);
-
-            var mimeType = MimeMapping.MimeUtility.GetMimeMapping(request.Filename);
-
             var requestTemplate = UrlSigner.RequestTemplate
                 .FromBucket(_configuration.StoreName)
                 .WithHttpMethod(System.Net.Http.HttpMethod.Put)
-                .WithObjectName(objectPath)
+                .WithObjectName(filePath)
                 .WithRequestHeaders(new Dictionary<string, IEnumerable<string>>
                 {
                     { "Content-Type", new [] { mimeType } }
@@ -104,22 +133,7 @@ namespace Blogifier.Files.Google
 
             var url = await _urlSigner.SignAsync(requestTemplate, options);
 
-            return new SignedUrlResponse
-            {
-                Url = url,
-                FileModel = new FileModel
-                {
-                    Filename = request.Filename,
-                    Url = _configuration.ReplacePublicUrlTemplateValues(request.Filename, objectPath),
-                    MimeType = mimeType,
-                    RelativePath = objectPath,
-                },
-                Parameters = new Dictionary<string, string>
-                {
-                    { "Content-Type", mimeType }
-                },
-                DoesRequirePermissionUpdate = true
-            };
+            return url;
         }
 
         public async Task SetObjectPublic(string objectName)
@@ -130,11 +144,10 @@ namespace Blogifier.Files.Google
             await _storageClient.UpdateObjectAsync(storageObject, new UpdateObjectOptions { PredefinedAcl = PredefinedObjectAcl.PublicRead });
         }
 
-        public async Task<bool> ExistsAsync(string objectName)
+        public async Task<bool> ExistsAsync(string objectPath)
         {
             try
             {
-                var objectPath = Path.Combine(_configuration.BasePath, objectName);
                 await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
 
                 return false;
@@ -150,10 +163,9 @@ namespace Blogifier.Files.Google
             }
         }
 
-        public async Task<FileResult> CreateAsync(IFormFile formFile)
+        public async Task<FileResult> CreateAsync(string objectPath, Stream stream)
         {
-            var filename = Path.GetFileName(formFile.FileName);
-            var objectPath = Path.Combine(_configuration.BasePath, filename);
+            var filename = Path.GetFileName(objectPath);
             var mimeType = MimeUtility.GetMimeMapping(filename);
 
             var uploadOptions = new UploadObjectOptions
@@ -161,22 +173,20 @@ namespace Blogifier.Files.Google
                 PredefinedAcl = PredefinedObjectAcl.PublicRead
             };
 
-            var result = await _storageClient.UploadObjectAsync(_configuration.StoreName, objectPath, mimeType, formFile.OpenReadStream(), uploadOptions);
+            var result = await _storageClient.UploadObjectAsync(_configuration.StoreName, objectPath, mimeType, stream, uploadOptions);
 
             return new FileResult
             {
-                Url = _configuration.ReplacePublicUrlTemplateValues(filename, result.Name),
                 Filename = filename,
                 Path = result.Name,
                 MimeType = mimeType
             };
         }
 
-        public async Task<bool> DeleteAsync(string objectName)
+        public async Task<bool> DeleteAsync(string objectPath)
         {
             try
             {
-                var objectPath = Path.Combine(_configuration.BasePath, objectName);
                 await _storageClient.DeleteObjectAsync(_configuration.StoreName, objectPath);
                 return true;
             }
@@ -198,7 +208,6 @@ namespace Blogifier.Files.Google
                 var filename = Path.GetFileName(item.Name);
                 yield return new FileResult
                 {
-                    Url = _configuration.ReplacePublicUrlTemplateValues(filename, item.Name),
                     Filename = filename,
                     Path = item.Name,
                     MimeType = item.ContentType

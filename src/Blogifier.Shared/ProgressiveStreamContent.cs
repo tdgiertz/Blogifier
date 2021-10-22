@@ -40,7 +40,7 @@ namespace Blogifier.Shared
 
                     await stream.WriteAsync(buffer);
 
-                    if(percentage != lastPercentage)
+                    if(percentage != lastPercentage && percentage != 100)
                     {
                         OnProgress?.Invoke(uploadedByteCount, percentage);
                         lastPercentage = percentage;
@@ -48,6 +48,8 @@ namespace Blogifier.Shared
                         await Task.Yield();
                     }
                 }
+
+                OnProgress?.Invoke(uploadedByteCount, 100);
             }
         }
     }

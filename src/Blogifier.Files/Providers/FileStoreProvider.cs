@@ -1,9 +1,9 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Blogifier.Files.Models;
 using Blogifier.Shared;
 using Blogifier.Shared.Models;
-using Microsoft.AspNetCore.Http;
 
 namespace Blogifier.Files.Providers
 {
@@ -15,7 +15,12 @@ namespace Blogifier.Files.Providers
             _fileStoreConfiguration = fileStoreConfiguration;
         }
 
-        public Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
+        public string GetAccountName()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Task<SignedUrlResponse> GetSignedUrlAsync(GenerateSignedUrl generateSignedUrl)
         {
             throw new System.NotImplementedException();
         }
@@ -25,7 +30,7 @@ namespace Blogifier.Files.Providers
             throw new System.NotImplementedException();
         }
 
-        public Task<FileResult> CreateAsync(IFormFile formFile)
+        public Task<FileResult> CreateAsync(string objectPath, Stream stream)
         {
             throw new System.NotImplementedException();
         }

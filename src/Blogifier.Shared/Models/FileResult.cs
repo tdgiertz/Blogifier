@@ -9,7 +9,7 @@ namespace Blogifier.Shared
         public string Url { get; set; }
         public string MimeType { get; set; }
 
-        public FileDescriptor ToFileDescriptor()
+        public FileDescriptor ToFileDescriptor(string thumbnailRelativePath)
         {
             return new FileDescriptor
             {
@@ -17,7 +17,7 @@ namespace Blogifier.Shared
                 Filename = Filename,
                 RelativePath = Path,
                 MimeType = MimeType,
-                Url = Url,
+                ThumbnailRelativePath = thumbnailRelativePath,
                 DateCreated = DateTime.UtcNow
             };
         }

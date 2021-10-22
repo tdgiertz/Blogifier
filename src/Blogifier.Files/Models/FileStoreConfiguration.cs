@@ -13,6 +13,7 @@ namespace Blogifier.Files.Models
         public string? StoreName { get; set; }
         [NotNull]
         public string? BasePath { get; set; }
+        [NotNull]
         public string? ThumbnailBasePath { get; set; }
         [NotNull]
         public string? PublicUrlTemplate { get; set; }

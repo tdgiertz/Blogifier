@@ -49,7 +49,7 @@ namespace Blogifier.Controllers
                     _logger.LogError(ex, "Post file failed");
                     model = new FileModel
                     {
-                        IsSuccessful = false,
+                        HasErrors = true,
                         Message = "File upload failed"
                     };
                 }
@@ -58,6 +58,18 @@ namespace Blogifier.Controllers
             }
 
             return models;
+        }
+
+        [HttpGet("{id:Guid}")]
+        public async Task<ActionResult<FileModel>> Get(Guid id)
+        {
+            return await _fileManager.GetAsync(id);
+        }
+
+        [HttpGet("{filename}")]
+        public async Task<ActionResult<FileModel>> Get(string filename)
+        {
+            return await _fileManager.GetAsync(filename);
         }
 
         [HttpPut]

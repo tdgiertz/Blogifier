@@ -1,5 +1,6 @@
 using Blogifier.Core.Extensions;
 using Blogifier.Extensions;
+using Blogifier.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -47,6 +48,7 @@ namespace Blogifier
             services.AddBlogDatabase(Configuration);
             services.AddFileStore(Configuration);
             services.AddDataStore(Configuration);
+            services.ConfigureThumbnails(Configuration);
 
             services.AddControllersWithViews();
             services.AddRazorPages();

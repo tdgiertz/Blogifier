@@ -1,6 +1,8 @@
 using Blogifier.Admin.Serivces;
+using Blogifier.Shared;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Sotsera.Blazor.Toaster.Core.Models;
 using System;
@@ -16,16 +18,36 @@ namespace Blogifier.Admin
 			var builder = WebAssemblyHostBuilder.CreateDefault(args);
 			builder.RootComponents.Add<App>("#app");
 
+            var httpClient = new HttpClient()
+            {
+                BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+            };
+
+            using var response = await httpClient.GetAsync("appsettings.json");
+            using var stream = await response.Content.ReadAsStreamAsync();
+
+            builder.Configuration.AddJsonStream(stream);
+
 			builder.Services.AddLocalization();
 
 			builder.Services.AddOptions();
 			builder.Services.AddAuthorizationCore();
 
-			builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+			builder.Services.AddScoped(sp => httpClient);
 
 			builder.Services.AddScoped<AuthenticationStateProvider, BlogAuthenticationStateProvider>();
             builder.Services.AddScoped<IFileService, FileService>();
-            builder.Services.AddScoped<IUploadFileService, UploadFileService>();
+
+            if(builder.Configuration.GetValue<bool>("FileStore:ServerUpload"))
+            {
+                builder.Services.AddScoped<IUploadFileService, UploadFileService>();
+            }
+            else
+            {
+                builder.Services.AddScoped<IUploadFileService, SignedUploadFileService>();
+            }
+
+            builder.Services.ConfigureThumbnails(builder.Configuration);
 
 			builder.Services.AddToaster(config =>
 			{

@@ -1,11 +1,11 @@
 ﻿using Blogifier.Core.Data;
+using Blogifier.Extensions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Serilog.Events;
 using Serilog.Sinks.GoogleCloudLogging;
 using System;
 using System.IO;
@@ -39,15 +39,24 @@ namespace Blogifier
                     catch { }
                 }
 
-                config = new GoogleCloudLoggingSinkOptions { ProjectId = section.GetValue<string>("GcpProjectName"), UseJsonOutput = true };
-            }
+                section = configuration.GetSection("Log");
 
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-                .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-                .Enrich.FromLogContext()
-                .WriteTo.GoogleCloudLogging(config)
-                .CreateLogger();
+                if(section.GetValue<string>("Provider") == "Google")
+                {
+                    config = new GoogleCloudLoggingSinkOptions { ProjectId = section.GetValue<string>("Resource"), UseJsonOutput = true };
+                    Log.Logger = new LoggerConfiguration()
+                        .Enrich.FromLogContext()
+                        .WriteTo.GoogleCloudLogging(config)
+                        .CreateLogger();
+                }
+                else
+                {
+                    Log.Logger = new LoggerConfiguration()
+                        .Enrich.FromLogContext()
+                        .WriteTo.Console()
+                        .CreateLogger();
+                }
+            }
 
             try
             {
@@ -66,6 +75,14 @@ namespace Blogifier
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
              Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((_, config) =>
+                {
+                    var baseConfig = new ConfigurationBuilder()
+                        .SetBasePath(Directory.GetCurrentDirectory())
+                        .AddJsonFile("appsettings.json")
+                        .Build();
+                    config.AddGoogleSecretsManager(baseConfig["SecretVault:Resource"]);
+                })
                 .UseSerilog()
                 .ConfigureWebHostDefaults(webBuilder =>
                 {

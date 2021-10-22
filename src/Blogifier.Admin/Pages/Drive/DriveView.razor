@@ -1,40 +1,60 @@
 @page "/admin/drive/"
 @using System.Linq
+@using System.Collections.Concurrent;
 @using Blogifier.Admin.Components.Drive;
 @using Models
 @using Serivces
 @inject IStringLocalizer<Resource> _localizer
 
+<PageTitle Title="@_localizer["drive"]" />
+
 <div class="container">
     <h1 class="section-title">@_localizer["Drive"]</h1>
     <div class="section-content">
-        <p>
-            <label>
+        <div class="row justify-content-between">
+            <div class="col-6">
                 <InputFile class="form-control" OnChange="@OnInputFileChange" multiple />
-            </label>
-        </p>
+            </div>
+            <div class="col-1">
+                <button type="button" class="btn btn-link list-search-toggle" data-bs-toggle="collapse" data-bs-target="#collapseSearch" @onclick="() => SearchInput.FocusAsync()">
+                    <svg width="16" height="16" viewBox="0 0 16 16"  fill="currentColor" xmlns="http://www.w3.org/2000/svg" data-bs-toggle="tooltip" title="@_localizer["search"]">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M10.4765 11.8908C9.4957 12.5892 8.29582 13 7 13C3.68629 13 1 10.3137 1 7C1 3.68629 3.68629 1 7 1C10.3137 1 13 3.68629 13 7C13 8.29584 12.5892 9.49573 11.8907 10.4766L15.0549 13.6407C15.4454 14.0312 15.4454 14.6644 15.0549 15.0549C14.6644 15.4455 14.0312 15.4455 13.6407 15.0549L10.4765 11.8908ZM11 7C11 9.20914 9.20914 11 7 11C4.79086 11 3 9.20914 3 7C3 4.79086 4.79086 3 7 3C9.20914 3 11 4.79086 11 7Z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
 
-        @if (_filesToUpload != null && _filesToUpload.Count() > 0)
+        @if (FilesToUpload != null && FilesToUpload.Count() > 0)
         {
-            <ul class="list-group" aria-label="files">
-                <Virtualize Items="_filesToUpload" Context="file">
+            <ul class="list-group mt-3" aria-label="files">
+                <Virtualize Items="FilesToUpload" Context="file">
                     <li class="list-group-item upload-file-item">
-                        <FileComponent File="file.Value.FileModel" UploadState="file.Value.UploadState" OnDelete="(id) => RemoveUploadFile(file)"></FileComponent>
+                        <FileComponent UploadFileModel="file.Value" OnSave="async id => await OnSaveUploadFileAsync(file)" OnDelete="async id => await RemoveUploadFileAsync(file)"></FileComponent>
                     </li>
                 </Virtualize>
             </ul>
         }
 
-        @if (_files != null && _files.Count() > 0)
+        @if (UploadFiles != null && UploadFiles.Count() > 0)
         {
-            <ul class="list-group" aria-label="files">
-                <Virtualize Items="_files" Context="file">
-                    <li class="list-group-item">
-                        <FileComponent File="file" OnDelete="(id) => RemoveFile(file)"></FileComponent>
-                    </li>
-                </Virtualize>
-            </ul>
-            <PagerComponent PagingDescriptor="_fileSearchModel.PagingDescriptor" OnPageChanged="@OnPageChanged" />
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="list-search collapse" id="collapseSearch">
+                        <input @ref="SearchInput" @bind="FileSearchModel.SearchTerm" @onkeyup="SearchKeyPressAsync" class="list-search-input" type="search">
+                        <button @onclick="async () => await LoadAsync()" class="list-search-button" type="button">
+                            @_localizer["search"]
+                        </button>
+                    </div>
+                    <ul class="list-group" aria-label="files">
+                        <Virtualize Items="UploadFiles" Context="file">
+                            <li class="list-group-item">
+                                <FileComponent UploadFileModel="file" OnDelete="(id) => RemoveFile(file)"></FileComponent>
+                            </li>
+                        </Virtualize>
+                    </ul>
+                    <PagerComponent PagingDescriptor="FileSearchModel.PagingDescriptor" OnPageChanged="@OnPageChanged" />
+                </div>
+            </div>
         }
     </div>
 </div>
@@ -45,35 +65,50 @@
     [Inject]
     protected IUploadFileService UploadFileService { get; set; }
 
-    private IList<FileModel> _files;
-    private FileSearchModel _fileSearchModel = new();
-    private System.Collections.Concurrent.ConcurrentDictionary<string, UploadFileModel> _filesToUpload = new();
-    private int _maxAllowedFiles = 100;
+    private ElementReference SearchInput;
+    private IList<UploadFileModel> UploadFiles;
+    private FileSearchModel FileSearchModel = new();
+    private ConcurrentDictionary<string, UploadFileModel> FilesToUpload = new();
+    private int MaxAllowedFiles = 100;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
+    protected async Task SearchKeyPressAsync(KeyboardEventArgs e)
     {
-        var result = await FileService.GetListAsync(_fileSearchModel);
-        _fileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
-        _files = result.Results;
-        StateHasChanged();
-    }
-
-    private void RemoveFile(FileModel model)
-    {
-        if (model != null)
+        if (e.Key == "Enter")
         {
-            _files.Remove(model);
+            await LoadAsync();
         }
     }
 
-    private void RemoveUploadFile(KeyValuePair<string, UploadFileModel> entry)
+    private async Task LoadAsync()
     {
-        _filesToUpload.TryRemove(entry);
+        var result = await FileService.GetListAsync(FileSearchModel);
+        FileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
+        UploadFiles = result.Results.Select(r => new UploadFileModel { FileModel = r, UploadState = new() }).ToList();
+        StateHasChanged();
+    }
+
+    private async Task OnSaveUploadFileAsync(KeyValuePair<string, UploadFileModel> entry)
+    {
+        await RemoveUploadFileAsync(entry);
+    }
+
+    private void RemoveFile(UploadFileModel model)
+    {
+        if (model != null)
+        {
+            UploadFiles.Remove(model);
+        }
+    }
+
+    private async Task RemoveUploadFileAsync(KeyValuePair<string, UploadFileModel> entry)
+    {
+        FilesToUpload.TryRemove(entry);
+        await LoadAsync();
     }
 
     private async Task OnPageChanged(int pageNumber)
@@ -85,19 +120,19 @@
     {
         try
         {
-            var files = e.GetMultipleFiles(_maxAllowedFiles);
-            var distinctFiles = files.Where(f => !_filesToUpload.ContainsKey(f.Name));
+            var files = e.GetMultipleFiles(MaxAllowedFiles);
+            var distinctFiles = files.Where(f => !FilesToUpload.ContainsKey(f.Name));
             var uploadFileModels = await UploadFileService.SetupNewFilesAsync(distinctFiles, uploadFileModel =>
             {
-                if (!_filesToUpload.TryAdd(uploadFileModel.FileModel.Filename, uploadFileModel))
+                if (!FilesToUpload.TryAdd(uploadFileModel.FileModel.Filename, uploadFileModel))
                 {
-                    uploadFileModel.FileModel.IsSuccessful = false;
+                    uploadFileModel.FileModel.HasErrors = false;
                     uploadFileModel.FileModel.Message = "File upload failed";
                 }
             });
 
             var uploadFileModelsAsync = UploadFileService.GetUploadFileModelsAsync(uploadFileModels.AsReadOnly());
-            await uploadFileModelsAsync.AsyncParallelForEach(model => UploadFileService.UploadWithSignedUrlAsync(model, () => StateHasChanged()), 5);
+            await uploadFileModelsAsync.AsyncParallelForEach(model => UploadFileService.UploadAsync(model, () => StateHasChanged()), 5);
         }
         catch(Exception)
         {

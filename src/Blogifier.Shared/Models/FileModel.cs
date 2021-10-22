@@ -9,11 +9,13 @@ namespace Blogifier.Shared
         public string RelativePath { get; set; }
         public string MimeType { get; set; }
         public string Url { get; set; }
+        public string ThumbnailUrl { get; set; }
+        public string ThumbnailRelativePath { get; set; }
         public string Description { get; set; }
         public DateTime DateCreated { get; set; }
         public DateTime? DateUpdated { get; set; }
 
-        public bool IsSuccessful { get; set; } = true;
+        public bool HasErrors { get; set; }
         public string Message { get; set; }
 
         public FileDescriptor ToFileDescriptor()
@@ -24,7 +26,7 @@ namespace Blogifier.Shared
                 Filename = Filename,
                 RelativePath = RelativePath,
                 MimeType = MimeType,
-                Url = Url,
+                ThumbnailRelativePath = ThumbnailRelativePath,
                 Description = Description,
                 DateCreated = DateCreated,
                 DateUpdated = DateUpdated

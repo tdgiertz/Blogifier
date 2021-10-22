@@ -30,6 +30,11 @@ namespace Blogifier.Core.Providers.EfCore
             return await _db.FileDescriptors.FindAsync(id);
         }
 
+        public async Task<FileDescriptor> GetAsync(string filePath)
+        {
+            return await _db.FileDescriptors.SingleOrDefaultAsync(f => f.RelativePath == filePath);
+        }
+
         public async Task<bool> ExistsAsync(string filePath)
         {
             var count = await _db.FileDescriptors.CountAsync(f => f.RelativePath == filePath);

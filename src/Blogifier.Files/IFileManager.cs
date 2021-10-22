@@ -11,6 +11,7 @@ namespace Blogifier.Files
         Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request);
         Task<PagedResult<FileModel>> GetPagedAsync(FileSearchModel searchModel);
         Task<FileModel> GetAsync(Guid id);
+        Task<FileModel> GetAsync(string filename);
         Task<FileModel> CreateAsync(IFormFile formFile);
         Task<bool> SetObjectPublic(Guid id);
         Task<bool> UpdateAsync(FileModel model);

@@ -1,18 +1,19 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Blogifier.Shared;
 using Blogifier.Shared.Models;
-using Microsoft.AspNetCore.Http;
 
 namespace Blogifier.Files.Providers
 {
     public interface IFileStoreProvider
     {
-        Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request);
-        Task SetObjectPublic(string objectName);
-        Task<bool> ExistsAsync(string objectName);
-        Task<FileResult> CreateAsync(IFormFile formFile);
-        Task<bool> DeleteAsync(string objectName);
+        string GetAccountName();
+        Task<SignedUrlResponse> GetSignedUrlAsync(GenerateSignedUrl generateSignedUrl);
+        Task SetObjectPublic(string objectPath);
+        Task<bool> ExistsAsync(string objectPath);
+        Task<FileResult> CreateAsync(string objectPath, Stream stream);
+        Task<bool> DeleteAsync(string objectPath);
         IAsyncEnumerable<FileResult> ListAsync();
     }
 }

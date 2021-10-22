@@ -6,5 +6,6 @@ namespace Blogifier.Shared.Models
     {
         [NotNull]
         public string Filename { get; set; }
+        public bool ShouldGenerateThumbnailUrl { get; set; }
     }
 }

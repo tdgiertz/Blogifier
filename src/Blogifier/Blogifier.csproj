@@ -9,6 +9,7 @@
 		<PackageReference Include="Google.Cloud.AspNetCore.DataProtection.Kms" Version="1.0.0-alpha03" />
 		<PackageReference Include="Google.Cloud.AspNetCore.DataProtection.Storage" Version="1.0.0-alpha03" />
 		<PackageReference Include="Google.Cloud.Kms.V1" Version="2.5.0" />
+    <PackageReference Include="Google.Cloud.SecretManager.V1" Version="1.7.0" />
 		<PackageReference Include="Google.Cloud.Storage.V1" Version="3.5.0" />
     <PackageReference Include="Grpc.Core" Version="2.41.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="5.0.1" />

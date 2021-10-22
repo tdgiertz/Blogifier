@@ -7,37 +7,54 @@ using System.Linq;
 using System.Collections.Generic;
 using Serilog;
 using Blogifier.Shared.Models;
+using Blogifier.Files.Extensions;
 
 namespace Blogifier.Files
 {
     public class FileManager : IFileManager
     {
+        private readonly ThumbnailSetting _thumbnailSetting;
         private readonly IFileStoreProvider _fileStoreProvider;
         private readonly IFileDescriptorProvider _fileDescriptorProvider;
         private readonly Models.FileStoreConfiguration _fileStoreConfiguration;
 
-        public FileManager(IFileStoreProvider fileStoreProvider, IFileDescriptorProvider fileDescriptorProvider, Models.FileStoreConfiguration configuration)
+        public FileManager(IFileStoreProvider fileStoreProvider, IFileDescriptorProvider fileDescriptorProvider, Models.FileStoreConfiguration configuration, ThumbnailSetting thumbnailSetting)
         {
             _fileStoreProvider = fileStoreProvider;
             _fileDescriptorProvider = fileDescriptorProvider;
             _fileStoreConfiguration = configuration;
+            _thumbnailSetting = thumbnailSetting;
         }
 
         public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
         {
-            var response = await _fileStoreProvider.GetSignedUrlAsync(request);
+            var objectPath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, request.Filename);
+            var generateSignedUrl = new GenerateSignedUrl
+            {
+                Filename = request.Filename,
+                FilePath = objectPath
+            };
+
+            if (request.ShouldGenerateThumbnailUrl)
+            {
+                generateSignedUrl.ThumbnailFilePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, request.Filename);
+            }
+
+            var response = await _fileStoreProvider.GetSignedUrlAsync(generateSignedUrl);
 
             var fileDescriptor = response.ToFileDescriptor();
 
+            fileDescriptor.RelativePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, request.Filename);
+            fileDescriptor.ThumbnailRelativePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, request.Filename);
             fileDescriptor.DateCreated = DateTime.UtcNow;
             fileDescriptor.Id = Guid.NewGuid();
 
-            if(!await _fileDescriptorProvider.InsertAsync(fileDescriptor))
+            if (!await _fileDescriptorProvider.InsertAsync(fileDescriptor))
             {
                 throw new Exception("Failed to create file descriptor");
             }
 
-            var fileModel = fileDescriptor.ToFileModel();
+            var fileModel = fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
 
             fileModel.Url = response.FileModel.Url;
             fileModel.RelativePath = response.FileModel.RelativePath;
@@ -52,9 +69,14 @@ namespace Blogifier.Files
         {
             var fileDescriptors = await _fileDescriptorProvider.GetPagedAsync(searchModel.PagingDescriptor, searchModel.SearchTerm);
 
+            var accountName = _fileStoreProvider.GetAccountName();
+
+            Func<FileDescriptor, string> getUrl = fd => _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fd.Filename, fd.RelativePath, accountName);
+            Func<FileDescriptor, string> getThumbnailUrl = fd => _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fd.Filename, fd.ThumbnailRelativePath, accountName);
+
             return new PagedResult<FileModel>
             {
-                Results = fileDescriptors.Select(d => d.ToFileModel()).ToList(),
+                Results = fileDescriptors.Select(d => d.ToFileModel(GetUrl(d), GetThumbnailUrl(d))).ToList(),
                 PagingDescriptor = searchModel.PagingDescriptor
             };
         }
@@ -63,7 +85,17 @@ namespace Blogifier.Files
         {
             var fileDescriptor = await _fileDescriptorProvider.GetAsync(id);
 
-            return fileDescriptor.ToFileModel();
+            var accountName = _fileStoreProvider.GetAccountName();
+
+            return fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
+        }
+
+        public async Task<FileModel> GetAsync(string filename)
+        {
+            var filePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, filename);
+            var fileDescriptor = await _fileDescriptorProvider.GetAsync(filePath);
+
+            return fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
         }
 
         public async Task<FileModel> CreateAsync(IFormFile formFile)
@@ -72,30 +104,44 @@ namespace Blogifier.Files
             FileDescriptor fileDescriptor;
             try
             {
-                var fileResult = await _fileStoreProvider.CreateAsync(formFile);
-                fileDescriptor = fileResult.ToFileDescriptor();
+                var filePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, formFile.FileName);
+                var fileResult = await _fileStoreProvider.CreateAsync(filePath, formFile.OpenReadStream());
+                string? thumbnailFilePath = null;
+
+                if(_thumbnailSetting.IsEnabled && (formFile.ContentType?.StartsWith("image") ?? false))
+                {
+                    using var stream = formFile.OpenReadStream();
+                    var thumbnailStream = await ImageProcessor.ResizeImageAsync(stream, _thumbnailSetting.Width, _thumbnailSetting.Height);
+                    thumbnailFilePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, formFile.FileName);
+                    var thumbnailFileResult = await _fileStoreProvider.CreateAsync(thumbnailFilePath, thumbnailStream);
+                }
+
+                fileDescriptor = fileResult.ToFileDescriptor(thumbnailFilePath);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to save file");
                 fileModel = new FileModel
                 {
-                    IsSuccessful = false,
+                    Filename = formFile.FileName,
+                    HasErrors = true,
                     Message = "Failed to save file"
                 };
                 return fileModel;
             }
+
             try
             {
                 await _fileDescriptorProvider.InsertAsync(fileDescriptor);
-                fileModel = fileDescriptor.ToFileModel();
+                fileModel = fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to write file descriptor");
                 fileModel = new FileModel
                 {
-                    IsSuccessful = false,
+                    Filename = formFile.FileName,
+                    HasErrors = true,
                     Message = "File saved. Failed to write file descriptor."
                 };
                 return fileModel;
@@ -108,18 +154,27 @@ namespace Blogifier.Files
         {
             var fileDescriptor = await _fileDescriptorProvider.GetAsync(id);
 
-            if(fileDescriptor == null)
+            if (fileDescriptor == null)
             {
                 return false;
             }
 
-            await _fileStoreProvider.SetObjectPublic(fileDescriptor.Filename);
+            var fileTask = _fileStoreProvider.SetObjectPublic(fileDescriptor.RelativePath);
+            var thumbnailTask = Task.CompletedTask;
+
+            if (!string.IsNullOrEmpty(fileDescriptor.ThumbnailRelativePath))
+            {
+                thumbnailTask = _fileStoreProvider.SetObjectPublic(fileDescriptor.ThumbnailRelativePath);
+            }
+
+            await Task.WhenAll(fileTask, thumbnailTask);
 
             return true;
         }
 
         public async Task<bool> UpdateAsync(FileModel model)
         {
+            model.DateUpdated = DateTime.UtcNow;
             var result = await _fileDescriptorProvider.UpdateAsync(model.ToFileDescriptor());
 
             return result;
@@ -133,7 +188,15 @@ namespace Blogifier.Files
 
             if (result)
             {
-                await _fileStoreProvider.DeleteAsync(fileDescriptor.Filename);
+                var fileTask = _fileStoreProvider.DeleteAsync(fileDescriptor.RelativePath);
+                var thumbnailTask = Task.CompletedTask;
+
+                if (!string.IsNullOrEmpty(fileDescriptor.ThumbnailRelativePath))
+                {
+                    thumbnailTask = _fileStoreProvider.DeleteAsync(fileDescriptor.ThumbnailRelativePath);
+                }
+
+                await Task.WhenAll(fileTask, thumbnailTask);
             }
 
             return result;
@@ -168,20 +231,20 @@ namespace Blogifier.Files
 
             var toRemove = filenameLookup.Where(f => !existingFiles.Contains(f.Key)).Select(f => f.Value);
 
-            var removeFileModels = toRemove.Select(f => new SyncronizationModel
+            var removeFileModels = toRemove.Select(fd => new SyncronizationModel
             {
-                Filename = f.Filename,
-                MimeType = f.MimeType,
-                Url = f.Url,
-                DateCreated = f.DateCreated,
-                Description = f.Description
+                Filename = fd.Filename,
+                MimeType = fd.MimeType,
+                Url = GetUrl(fd),
+                DateCreated = fd.DateCreated,
+                Description = fd.Description
             });
 
-            var importFileModels = importList.Select(i => new SyncronizationModel
+            var importFileModels = importList.Select(fr => new SyncronizationModel
             {
-                Filename = i.Filename,
-                MimeType = i.MimeType,
-                Url = i.Url
+                Filename = fr.Filename,
+                MimeType = fr.MimeType,
+                Url = fr.Url
             });
 
             return new FileSyncronizationModel
@@ -189,6 +252,18 @@ namespace Blogifier.Files
                 ImportFileModels = importFileModels,
                 RemoveFileModels = removeFileModels
             };
+        }
+
+        private string GetUrl(FileDescriptor fileDescriptor)
+        {
+            var accountName = _fileStoreProvider.GetAccountName();
+            return _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fileDescriptor.Filename, fileDescriptor.RelativePath, accountName);
+        }
+
+        private string GetThumbnailUrl(FileDescriptor fileDescriptor)
+        {
+            var accountName = _fileStoreProvider.GetAccountName();
+            return _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fileDescriptor.Filename, fileDescriptor.ThumbnailRelativePath, accountName);
         }
     }
 }

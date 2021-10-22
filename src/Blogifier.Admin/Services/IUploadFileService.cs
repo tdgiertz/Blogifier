@@ -10,6 +10,6 @@ namespace Blogifier.Admin.Serivces
     {
         Task<List<UploadFileModel>> SetupNewFilesAsync(IEnumerable<IBrowserFile> files, Action<UploadFileModel> onEachModel);
         IAsyncEnumerable<UploadFileModel> GetUploadFileModelsAsync(IReadOnlyList<UploadFileModel> files);
-        Task UploadWithSignedUrlAsync(UploadFileModel uploadFileModel, Action onUpdateState);
+        Task UploadAsync(UploadFileModel uploadFileModel, Action onUpdateState, Action<bool> setIsEditing = null);
     }
 }

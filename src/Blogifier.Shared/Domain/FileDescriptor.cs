@@ -14,15 +14,14 @@ namespace Blogifier.Shared
         public string Filename { get; set; }
         [Required]
         public string RelativePath { get; set; }
+        public string ThumbnailRelativePath { get; set; }
         public string MimeType { get; set; }
-        [Required]
-        public string Url { get; set; }
         [StringLength(1000)]
         public string Description { get; set; }
         public DateTime DateCreated { get; set; }
         public DateTime? DateUpdated { get; set; }
 
-        public FileModel ToFileModel()
+        public FileModel ToFileModel(string url, string thumbnailUrl)
         {
             return new FileModel
             {
@@ -30,7 +29,9 @@ namespace Blogifier.Shared
                 Filename = Filename,
                 RelativePath = RelativePath,
                 MimeType = MimeType,
-                Url = Url,
+                Url = url,
+                ThumbnailUrl = thumbnailUrl,
+                ThumbnailRelativePath = ThumbnailRelativePath,
                 Description = Description,
                 DateCreated = DateCreated,
                 DateUpdated = DateUpdated
