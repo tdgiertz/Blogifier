@@ -68,12 +68,17 @@ namespace Blogifier.Core.Providers.MongoDb
 
         public async Task<IEnumerable<PostItem>> Search(PagingDescriptor pagingDescriptor, string term, Guid author = default(Guid), string include = "", bool sanitize = false)
         {
+            return await Search(pagingDescriptor, term, author, include, sanitize, null);
+        }
+
+        private async Task<IEnumerable<PostItem>> Search(PagingDescriptor pagingDescriptor, string term, Guid author = default(Guid), string include = "", bool sanitize = false, FilterDefinition<Post> predicate = null)
+        {
             term = term.ToLower();
 
             var results = new List<SearchResult>();
             var termList = term.ToLower().Split(' ').ToList();
 
-            foreach (var p in await GetAllPosts(include, author, termList))
+            foreach (var p in await GetAllPosts(include, author, termList, string.Empty, predicate))
             {
                 var rank = 0;
                 var hits = 0;
@@ -149,44 +154,32 @@ namespace Blogifier.Core.Providers.MongoDb
         {
             var model = new PostModel();
 
-            var all = _postCollection
-                .Find(_ => true)
-                .SortByDescending(p => p.IsFeatured)
-                .ThenByDescending(p => p.Published).ToList();
+            var post = await _postCollection.Aggregate()
+                .Match(p => p.Slug == slug)
+                .Lookup(_authorCollection, p => p.AuthorId, a => a.Id, (Models.PostAuthorAggregate paa) => paa.Author)
+                .Unwind<PostAuthorAggregate, LookupPost>(p => p.Author)
+                .FirstOrDefaultAsync();
 
-            SetOlderNewerPosts(slug, model, all);
+            if(post == null)
+            {
+                return model;
+            }
 
-            var updateDefinition = Builders<Post>.Update
-                .Inc(p => p.PostViews, 1);
+            model.Post = PostToItem(post.ToPost());
 
-            var result = _postCollection.UpdateOneAsync(p => p.Slug == slug, updateDefinition);
+            var relatedTask = Search(new PagingDescriptor(1), model.Post.Title, default(Guid), "PF", true, Builders<Post>.Filter.Ne(p => p.Id, model.Post.Id));
+            var previousPostTask = _postCollection.Find(p => p.Published > DateTime.MinValue && p.Published < post.Published).SortByDescending(p => p.Published).FirstOrDefaultAsync();
+            var nextPostTask = _postCollection.Find(p => p.Published > DateTime.MinValue && p.Published > post.Published).SortBy(p => p.Published).FirstOrDefaultAsync();
+            var updateTask = _postCollection.UpdateOneAsync(p => p.Slug == slug, Builders<Post>.Update.Inc(p => p.PostViews, 1));
 
-            model.Related = await Search(new PagingDescriptor(1), model.Post.Title, default(Guid), "PF", true);
-            model.Related = model.Related.Where(r => r.Id != model.Post.Id).ToList();
+            model.Older = PostToItem(await previousPostTask);
+            model.Newer = PostToItem(await nextPostTask);
+
+            await updateTask;
+
+            model.Related = (await relatedTask).Take(3).ToList();
 
             return model;
-        }
-
-        private void SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
-        {
-            if (all != null && all.Count > 0)
-            {
-                for (int i = 0; i < all.Count; i++)
-                {
-                    if (all[i].Slug == slug)
-                    {
-                        model.Post = PostToItem(all[i]);
-
-                        if (i > 0 && all[i - 1].Published > DateTime.MinValue)
-                            model.Newer = PostToItem(all[i - 1]);
-
-                        if (i + 1 < all.Count && all[i + 1].Published > DateTime.MinValue)
-                            model.Older = PostToItem(all[i + 1]);
-
-                        break;
-                    }
-                }
-            }
         }
 
         public async Task<Post> GetPostBySlug(string slug)
@@ -315,38 +308,43 @@ namespace Blogifier.Core.Providers.MongoDb
 
         #region Private methods
 
-        private PostItem PostToItem(Post p, bool sanitize = false)
+        private PostItem PostToItem(Post post, bool sanitize = false)
         {
-            var post = new PostItem
+            if(post == null)
             {
-                Id = p.Id,
-                PostType = p.PostType,
-                Slug = p.Slug,
-                Title = p.Title,
-                Description = p.Description,
-                Content = p.Content,
-                Categories = p.Categories,
-                Cover = p.Cover,
-                PostViews = p.PostViews,
-                Rating = p.Rating,
-                Published = p.Published,
-                Featured = p.IsFeatured,
-                Author = p.Author,
+                return null;
+            }
+
+            var postItem = new PostItem
+            {
+                Id = post.Id,
+                PostType = post.PostType,
+                Slug = post.Slug,
+                Title = post.Title,
+                Description = post.Description,
+                Content = post.Content,
+                Categories = post.Categories,
+                Cover = post.Cover,
+                PostViews = post.PostViews,
+                Rating = post.Rating,
+                Published = post.Published,
+                Featured = post.IsFeatured,
+                Author = post.Author,
                 SocialFields = new List<SocialField>()
             };
 
-            if (post.Author != null)
+            if (postItem.Author != null)
             {
-                if (string.IsNullOrEmpty(post.Author.Avatar))
-                    string.Format(Constants.AvatarDataImage, post.Author.DisplayName.Substring(0, 1).ToUpper());
+                if (string.IsNullOrEmpty(postItem.Author.Avatar))
+                    string.Format(Constants.AvatarDataImage, postItem.Author.DisplayName.Substring(0, 1).ToUpper());
 
-                post.Author.Email = sanitize ? "donotreply@us.com" : post.Author.Email;
+                postItem.Author.Email = sanitize ? "donotreply@us.com" : postItem.Author.Email;
             }
 
-            return post;
+            return postItem;
         }
 
-        private async Task<List<Post>> GetAllPosts(string include, Guid author, IEnumerable<string> searchTerms = null, string category = "")
+        private async Task<List<Post>> GetAllPosts(string include, Guid author, IEnumerable<string> searchTerms = null, string category = "", FilterDefinition<Post> predicate = null)
         {
             FilterDefinition<Post> postDraftFilter = null;
             FilterDefinition<Post> postFeaturedFilter = null;
@@ -396,11 +394,20 @@ namespace Blogifier.Core.Providers.MongoDb
                 filter = Builders<Post>.Filter.And(filter, searchTermsFilter);
             }
 
-            return await _postCollection
+            if(predicate != null)
+            {
+                filter = Builders<Post>.Filter.And(filter, predicate);
+            }
+
+            var lookupPosts = await _postCollection
                 .Aggregate()
                 .Match(filter)
                 .SortByDescending(p => p.Published)
+                .Lookup(_authorCollection, p => p.AuthorId, a => a.Id, (Models.PostAuthorAggregate paa) => paa.Author)
+                .Unwind<PostAuthorAggregate, LookupPost>(p => p.Author)
                 .ToListAsync();
+
+            return lookupPosts.Select(lp => lp.ToPost()).ToList();
         }
 
         private FilterDefinition<Post> GetSearchTermsFilter(IEnumerable<string> searchTerms)
