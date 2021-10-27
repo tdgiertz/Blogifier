@@ -1,3 +1,5 @@
+using Blazored.Modal;
+using Blogifier.Admin.Components;
 using Blogifier.Admin.Serivces;
 using Blogifier.Shared;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -29,7 +31,7 @@ namespace Blogifier.Admin
             builder.Configuration.AddJsonStream(stream);
 
 			builder.Services.AddLocalization();
-
+            builder.Services.AddBlazoredModal();
 			builder.Services.AddOptions();
 			builder.Services.AddAuthorizationCore();
 
@@ -37,6 +39,7 @@ namespace Blogifier.Admin
 
 			builder.Services.AddScoped<AuthenticationStateProvider, BlogAuthenticationStateProvider>();
             builder.Services.AddScoped<IFileService, FileService>();
+            builder.Services.AddTransient<EasyMdeWrapper>();
 
             if(builder.Configuration.GetValue<bool>("FileStore:ServerUpload"))
             {

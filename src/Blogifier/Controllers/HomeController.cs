@@ -11,6 +11,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
+using Serilog;
 
 namespace Blogifier.Controllers
 {
@@ -209,13 +210,16 @@ namespace Blogifier.Controllers
                 {
                     string viewPath = $"~/Views/Themes/{model.Blog.Theme}/Page.cshtml";
                     if (IsViewExists(viewPath))
+                    {
                         return View(viewPath, model);
+                    }
                 }
 
                 return View($"~/Views/Themes/{model.Blog.Theme}/Post.cshtml", model);
             }
-            catch
+            catch(Exception ex)
             {
+                Log.Error("Error getting blog post", ex);
                 return Redirect("~/error");
             }
         }

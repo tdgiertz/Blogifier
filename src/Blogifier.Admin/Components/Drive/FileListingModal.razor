@@ -1,0 +1,13 @@
+<div class="vw-75">
+    <FileListingComponent OnLink="fileModel => OnLink(fileModel)"></FileListingComponent>
+</div>
+
+@code {
+    [CascadingParameter]
+    BlazoredModalInstance ModalInstance { get; set; }
+
+    public void OnLink(FileModel fileModel)
+    {
+        ModalInstance.CloseAsync(ModalResult.Ok<FileModel>(fileModel));
+    }
+}

@@ -1,20 +1,89 @@
-﻿@inject IJSRuntime JSRuntime
+﻿@using Drive
+@using Models
+@inject IJSRuntime JSRuntime
 @inject IStringLocalizer<Resource> _localizer
+@implements IAsyncDisposable
+
 <div class="easymde-wrapper">
-    <textarea id="bf_editor" tabindex="2" class="visually-hidden" placeholder="@_localizer["type-here"]"></textarea>
+    <textarea @ref=MdeTextArea id="bf_editor" tabindex="2" class="visually-hidden" placeholder="@_localizer["type-here"]"></textarea>
 </div>
 
 @code {
-    [Parameter] public string Content { get; set; }
-    [Parameter] public string Toolbar { get; set; }
+    [Inject]
+    private EasyMdeWrapper Wrapper { get; set; }
+
+    [CascadingParameter]
+    public IModalService Modal { get; set; }
+    [Parameter]
+    public string Content { get; set; }
+
+    [Parameter]
+    public Post Post { get; set; }
+    [Parameter]
+    public ToolbarType ToolbarType { get; set; }
+    [Parameter]
+    public EventCallback<string> OnContentChanged { get; set; }
+
+    private ElementReference MdeTextArea;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeAsync<string>("commonJsFunctions.loadEditor", Toolbar);
+            Wrapper.OnInsertFile = () => OnInsertFileAsync();
+            await Wrapper.LoadEditorAsync(ToolbarType == ToolbarType.Full, MdeTextArea);
+            await JSRuntime.InvokeVoidAsync("commonJsFunctions.setTooltip");
+            await Wrapper.SetEditorTextAsync(Content, OnTextChanged);
+        }
+    }
+
+    public async Task OnTextChanged(string text)
+    {
+        Content = text;
+
+        await OnContentChanged.InvokeAsync(text);
+    }
+
+    private async Task OnInsertFileAsync()
+    {
+        var modal = Modal.Show<FileListingModal>("File Selection", new ModalOptions { ContentScrollable = true });
+        var result = await modal.Result;
+
+        if(!result.Cancelled)
+        {
+            await InsertLinkAsync((FileModel)result.Data);
+        }
+    }
+
+    private async Task InsertLinkAsync(FileModel fileModel)
+    {
+        if(fileModel == null) return;
+
+        var text = string.Empty;
+        var newline = Environment.NewLine;
+
+        if(fileModel.MimeType?.StartsWith("image", StringComparison.InvariantCultureIgnoreCase) ?? false)
+        {
+            text = $"{newline}![{fileModel.Filename}]({fileModel.Url})";
+        }
+        else if(fileModel.MimeType?.StartsWith("video", StringComparison.InvariantCultureIgnoreCase) ?? false)
+        {
+            text = $"<video width=\"700\" height=\"350\" controls>{newline}\t\t<source src=\"{fileModel.Url}\" type=\"{fileModel.MimeType}\">{newline}\t\tYour browser does not support the video tag.{newline}</video>";
+        }
+        else if(fileModel.MimeType?.StartsWith("audio", StringComparison.InvariantCultureIgnoreCase) ?? false)
+        {
+            text = $"<audio controls>{newline}\t\t<source src=\"{fileModel.Url}\" type=\"{fileModel.MimeType}\">{newline}\t\tYour browser does not support the audio tag.{newline}</audio>";
+        }
+        else
+        {
+            text = $"{newline}[{fileModel.Filename}]({fileModel.Url})";
         }
 
-        await JSRuntime.InvokeAsync<string>("commonJsFunctions.setEditorValue", Content );
+        await Wrapper.ReplaceSelectionAsync(text);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Wrapper.DisposeAsync();
     }
 }
