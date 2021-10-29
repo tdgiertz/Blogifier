@@ -53,7 +53,7 @@ namespace Blogifier.Core.Providers.MongoDb
                     builder.Regex(d => d.Description, new BsonRegularExpression(searchTerm, "i")));
             }
 
-            var sortDefinitions = new[] { new Models.SortDefinition<FileDescriptor> { IsDescending = false, Sort = d => d.Filename } };
+            var sortDefinitions = new[] { new Models.SortDefinition<FileDescriptor> { IsDescending = true, Sort = d => d.DateCreated } };
 
             return await _fileCollection.GetPagedAsync(pagingDescriptor, filter, sortDefinitions);
         }

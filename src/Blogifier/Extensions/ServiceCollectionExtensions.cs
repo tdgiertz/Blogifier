@@ -5,6 +5,7 @@ using Blogifier.Files;
 using Blogifier.Files.Azure.Extensions;
 using Blogifier.Files.Aws.Extensions;
 using Blogifier.Files.Backblaze.Extensions;
+using Blogifier.Files.FileSystem.Extensions;
 using Blogifier.Files.Google.Extensions;
 using Blogifier.Files.Models;
 using Blogifier.Files.Providers;
@@ -56,6 +57,10 @@ namespace Blogifier.Extensions
             else if (provider.Equals("Backblaze", System.StringComparison.InvariantCultureIgnoreCase))
             {
                 services.UseBackblazeFileStore();
+            }
+            else if (provider.Equals("FileSystem", System.StringComparison.InvariantCultureIgnoreCase))
+            {
+                services.UseFileSystemFileStore();
             }
             else
             {

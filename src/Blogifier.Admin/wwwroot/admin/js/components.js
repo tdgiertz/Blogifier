@@ -107,5 +107,11 @@ window.commonJsFunctions = {
     }
     time();
     setInterval(time, 60 * 1000);
+  },
+  updateAvatar: function (src) {
+    let profilePicture = document.querySelectorAll('.profilePicture');
+    for (i = 0; i < profilePicture.length; i++) {
+      profilePicture[i].src = src;
+    }
   }
 };

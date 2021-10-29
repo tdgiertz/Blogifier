@@ -136,9 +136,8 @@ namespace Blogifier.Files.Google
             return url;
         }
 
-        public async Task SetObjectPublic(string objectName)
+        public async Task SetObjectPublic(string objectPath)
         {
-            var objectPath = Path.Combine(_configuration.BasePath, objectName);
             var storageObject = await _storageClient.GetObjectAsync(_configuration.StoreName, objectPath);
 
             await _storageClient.UpdateObjectAsync(storageObject, new UpdateObjectOptions { PredefinedAcl = PredefinedObjectAcl.PublicRead });

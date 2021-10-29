@@ -1,4 +1,5 @@
 @page "/admin/editor/{Slug?}/"
+@using Components.Drive
 @using Models
 @inject HttpClient _http
 @inject IStringLocalizer<Resource> _localizer
@@ -20,9 +21,9 @@
                 @if (Post.Id == default(Guid))
                     {
                         <button type="button" class="btn btn-blogifier me-3 px-4"
-                    @onclick="() => Publish()">@_localizer["publish"]</button>
+                            @onclick="() => Publish()">@_localizer["publish"]</button>
                         <button type="button" class="btn btn-default me-auto" @onclick="() => Save()"
-                    @onclick:preventDefault>@_localizer["save"]</button>
+                            @onclick:preventDefault>@_localizer["save"]</button>
                     }
                     else
                     {
@@ -88,15 +89,11 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="coverDropdown">
                                 <li>
-                                    <button class="dropdown-item"
-                                    onclick="return fileManager.uploadClick('@UploadType.PostCover', @Post.Id);"
-                                    type="button">@_localizer["change"]</button>
-                                    <input type="hidden" class="txt-upload" @bind="Post.Cover" name="cover" id="cover"
-                                    readonly />
+                                    <button class="dropdown-item" @onclick="async () => await OnSelectCoverAsync()" type="button">@_localizer["change"]</button>
+                                    <input type="hidden" class="txt-upload" @bind="Post.Cover" name="cover" id="cover" readonly />
                                 </li>
                                 <li>
-                                    <button class="dropdown-item" type="button"
-                                    @onclick="() => ResetCover()">@_localizer["reset"]</button>
+                                    <button class="dropdown-item" type="button" @onclick="() => ResetCover()">@_localizer["reset"]</button>
                                 </li>
                             </ul>
                         </div>
@@ -113,6 +110,9 @@
 
 @code
 {
+    [CascadingParameter]
+    public IModalService Modal { get; set; }
+
     protected Author Author { get; set; }
     protected Post Post { get; set; }
     protected ToasterComponent Toaster;
@@ -154,9 +154,6 @@
     protected async Task SavePost(PostAction postAction)
     {
         Post.PostType = _stateprovider.PostType;
-
-        Post.Cover = await _jsruntime.InvokeAsync<string>("commonJsFunctions.getSrcValue", "postCover");
-        Post.Cover = Post.Cover.Replace(_navigation.BaseUri, "");
 
         if (string.IsNullOrEmpty(Post.Cover))
             Post.Cover = Constants.DefaultCover;
@@ -246,12 +243,7 @@
     protected async Task ResetCover()
     {
         Post.Cover = Constants.DefaultCover;
-        await Save();
-    }
-
-    protected async Task RemoveCover()
-    {
-        Post.Cover = null;
+        StateHasChanged();
         await Save();
     }
 
@@ -266,6 +258,20 @@
             PostType = PostType.Post,
             Cover = Constants.DefaultCover
         };
+    }
+
+    private async Task OnSelectCoverAsync()
+    {
+        var modal = Modal.Show<FileListingModal>("File Selection", new ModalOptions { ContentScrollable = true });
+        var result = await modal.Result;
+
+        if(!result.Cancelled)
+        {
+            var fileModel = (FileModel)result.Data;
+            Post.Cover = fileModel.Url;
+            StateHasChanged();
+            await Save();
+        }
     }
 
     public void Dispose()

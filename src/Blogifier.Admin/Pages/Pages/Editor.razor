@@ -1,4 +1,5 @@
 @page "/admin/pages/editor/{Slug?}/"
+@using Components.Drive
 @using Models
 @inject HttpClient _http
 @inject IStringLocalizer<Resource> _localizer
@@ -74,7 +75,7 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="coverDropdown">
                                 <li>
-                                    <button class="dropdown-item" onclick="return fileManager.uploadClick('@UploadType.PostCover', @Post.Id);" type="button">@_localizer["change"]</button>
+                                    <button class="dropdown-item" @onclick="async () => await OnSelectCoverAsync()" type="button">@_localizer["change"]</button>
                                     <input type="hidden" class="txt-upload" @bind="Post.Cover" name="cover" id="cover" readonly />
                                 </li>
                                 <li>
@@ -92,123 +93,134 @@
 <ToasterComponent @ref="Toaster" />
 
 @code {
+    [CascadingParameter]
+    public IModalService Modal { get; set; }
+
     private EditorComponent EditorComponent { get; set; }
-   protected Author Author { get; set; }
-   protected Post Post { get; set; }
-   protected ToasterComponent Toaster;
-   protected string Confirm { get; set; }
+    protected Author Author { get; set; }
+    protected Post Post { get; set; }
+    protected ToasterComponent Toaster;
+    protected string Confirm { get; set; }
 
-   [Parameter]
-#nullable enable
-   public string? Slug { get; set; }
-#nullable disable
+    [Parameter]
+    #nullable enable
+    public string? Slug { get; set; }
+    #nullable disable
 
-   protected override async Task OnInitializedAsync()
-   {
-       Author = await _http.GetFromJsonAsync<Author>("api/author/getcurrent");
-       Confirm = _localizer["confirm-delete"];
-       await Load();
-   }
+    protected override async Task OnInitializedAsync()
+    {
+        Author = await _http.GetFromJsonAsync<Author>("api/author/getcurrent");
+        Confirm = _localizer["confirm-delete"];
+        await Load();
+    }
 
-   protected async Task Load()
-   {
-       Post = NewPost();
+    protected async Task Load()
+    {
+        Post = NewPost();
 
-       if (!string.IsNullOrEmpty(Slug))
-       {
-            Post = await _http.GetFromJsonAsync<Post>($"api/post/byslug/{Slug}");
-            var headTitle = _localizer["edit"] + " - " + Post.Title;
-            await _jsruntime.InvokeVoidAsync("commonJsFunctions.setTitle", headTitle);
-       }
-   }
+        if (!string.IsNullOrEmpty(Slug))
+        {
+                Post = await _http.GetFromJsonAsync<Post>($"api/post/byslug/{Slug}");
+                var headTitle = _localizer["edit"] + " - " + Post.Title;
+                await _jsruntime.InvokeVoidAsync("commonJsFunctions.setTitle", headTitle);
+        }
+    }
 
-   protected async Task SavePost(PostAction postAction)
-   {
-       Post.PostType = PostType.Page;
+    protected async Task SavePost(PostAction postAction)
+    {
+        Post.PostType = PostType.Page;
 
-       Post.Cover = await _jsruntime.InvokeAsync<string>("commonJsFunctions.getSrcValue", "postCover");
-       if(string.IsNullOrEmpty(Post.Cover))
-           Post.Cover = Constants.DefaultCover;
+        if(string.IsNullOrEmpty(Post.Cover))
+            Post.Cover = Constants.DefaultCover;
 
-       if (string.IsNullOrEmpty(Post.Description))
-           Post.Description = Post.Title;
+        if (string.IsNullOrEmpty(Post.Description))
+            Post.Description = Post.Title;
 
-       if (string.IsNullOrEmpty(Post.Title) || string.IsNullOrEmpty(Post.Content))
-       {
-           _toaster.Error(_localizer["title-content-required"]);
-           return;
-       }
+        if (string.IsNullOrEmpty(Post.Title) || string.IsNullOrEmpty(Post.Content))
+        {
+            _toaster.Error(_localizer["title-content-required"]);
+            return;
+        }
 
-       if (postAction == PostAction.Publish)
-           Post.Published = DateTime.UtcNow;
+        if (postAction == PostAction.Publish)
+            Post.Published = DateTime.UtcNow;
 
-       if (postAction == PostAction.Unpublish)
-           Post.Published = DateTime.MinValue;
+        if (postAction == PostAction.Unpublish)
+            Post.Published = DateTime.MinValue;
 
-       if (Post.Id == default(Guid))
-       {
-           Post.Slug = await _http.GetStringAsync($"api/post/getslug/{Post.Title}");
-           Toaster.Toast(await _http.PostAsJsonAsync<Post>($"api/post/add", Post));
+        if (Post.Id == default(Guid))
+        {
+            Post.Slug = await _http.GetStringAsync($"api/post/getslug/{Post.Title}");
+            Toaster.Toast(await _http.PostAsJsonAsync<Post>($"api/post/add", Post));
 
-           Post = await _http.GetFromJsonAsync<Post>($"api/post/byslug/{Post.Slug}");
+            Post = await _http.GetFromJsonAsync<Post>($"api/post/byslug/{Post.Slug}");
 
-           _navigation.NavigateTo($"/admin/pages/editor/{Post.Slug}");
-           await Load();
-       }
-       else
-       {
-           Toaster.Toast(await _http.PutAsJsonAsync<Post>($"api/post/update", Post));
-           await Load();
-       }
-   }
+            _navigation.NavigateTo($"/admin/pages/editor/{Post.Slug}");
+            await Load();
+        }
+        else
+        {
+            Toaster.Toast(await _http.PutAsJsonAsync<Post>($"api/post/update", Post));
+            await Load();
+        }
+    }
 
-   protected async Task Save()
-   {
-       await SavePost(PostAction.Save);
-   }
+    protected async Task Save()
+    {
+        await SavePost(PostAction.Save);
+    }
 
-   protected async Task Publish()
-   {
-       await SavePost(PostAction.Publish);
-   }
+    protected async Task Publish()
+    {
+        await SavePost(PostAction.Publish);
+    }
 
-   protected async Task Unpublish()
-   {
-       await SavePost(PostAction.Unpublish);
-   }
+    protected async Task Unpublish()
+    {
+        await SavePost(PostAction.Unpublish);
+    }
 
-   protected async Task Remove(Guid id)
-   {
-       if (await _jsruntime.InvokeAsync<bool>("confirm", Confirm))
-       {
-           Toaster.Toast(await _http.DeleteAsync($"api/post/{id}"));
-           _navigation.NavigateTo($"admin");
-       }
-   }
+    protected async Task Remove(Guid id)
+    {
+        if (await _jsruntime.InvokeAsync<bool>("confirm", Confirm))
+        {
+            Toaster.Toast(await _http.DeleteAsync($"api/post/{id}"));
+            _navigation.NavigateTo($"admin");
+        }
+    }
 
-   protected async Task ResetCover()
-   {
-       Post.Cover = Constants.DefaultCover;
-       await Save();
-   }
+    protected async Task ResetCover()
+    {
+        Post.Cover = Constants.DefaultCover;
+        StateHasChanged();
+        await Save();
+    }
 
-   protected async Task RemoveCover()
-   {
-       Post.Cover = null;
-       await Save();
-   }
+    private async Task OnSelectCoverAsync()
+    {
+        var modal = Modal.Show<FileListingModal>("File Selection", new ModalOptions { ContentScrollable = true });
+        var result = await modal.Result;
 
-   protected Post NewPost()
-   {
-       return new Post
-       {
-           Id = default(Guid),
-           Title = "",
-           Description = "",
-           Content = "",
-           AuthorId = Author.Id,
-           PostType = PostType.Page,
-           Cover = Constants.DefaultCover
-       };
-   }
+        if(!result.Cancelled)
+        {
+            var fileModel = (FileModel)result.Data;
+            Post.Cover = fileModel.Url;
+            StateHasChanged();
+            await Save();
+        }
+    }
+
+    protected Post NewPost()
+    {
+        return new Post
+        {
+            Id = default(Guid),
+            Title = "",
+            Description = "",
+            Content = "",
+            AuthorId = Author.Id,
+            PostType = PostType.Page,
+            Cover = Constants.DefaultCover
+        };
+    }
 }

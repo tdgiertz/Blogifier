@@ -43,9 +43,9 @@ namespace Blogifier.Core.Providers.EfCore
 
         public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(PagingDescriptor pagingDescriptor, string searchTerm)
         {
-            var query = _db.FileDescriptors.Where(d =>
-                d.Filename.ToLower().Contains(searchTerm.ToLower()) ||
-                d.Description.ToLower().Contains(searchTerm.ToLower()));
+            var query = _db.FileDescriptors
+                .Where(d => d.Filename.ToLower().Contains(searchTerm.ToLower()) || d.Description.ToLower().Contains(searchTerm.ToLower()))
+                .OrderByDescending(d => d.DateCreated);
 
             return await PaginatedList<FileDescriptor>.CreateAsync(query, pagingDescriptor);
         }

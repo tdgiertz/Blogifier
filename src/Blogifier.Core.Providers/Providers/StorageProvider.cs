@@ -1,5 +1,6 @@
 ﻿using Blogifier.Shared;
 using Blogifier.Shared.Extensions;
+using Blogifier.Shared.Helpers;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -17,19 +18,19 @@ namespace Blogifier.Core.Providers
 
 		public StorageProvider()
 		{
-			_storageRoot = $"{ContentRoot}{_slash}wwwroot{_slash}data{_slash}";
+			_storageRoot = $"{FileSystemHelpers.ContentRoot}{_slash}wwwroot{_slash}data{_slash}";
 		}
 
 		public bool FileExists(string path)
 		{
-			Serilog.Log.Information($"File exists: {Path.Combine(ContentRoot, path)}");
-			return File.Exists(Path.Combine(ContentRoot, path));
+			Serilog.Log.Information($"File exists: {Path.Combine(FileSystemHelpers.ContentRoot, path)}");
+			return File.Exists(Path.Combine(FileSystemHelpers.ContentRoot, path));
 		}
 
 		public async Task<IList<string>> GetThemes()
 		{
 			var themes = new List<string>();
-			var themesDirectory = Path.Combine(ContentRoot, $"Views{_slash}Themes");
+			var themesDirectory = Path.Combine(FileSystemHelpers.ContentRoot, "Views", "Themes");
 			try
 			{
 				foreach (string dir in Directory.GetDirectories(themesDirectory))
@@ -44,7 +45,7 @@ namespace Blogifier.Core.Providers
 		public async Task<ThemeSettings> GetThemeSettings(string theme)
 		{
 			var settings = new ThemeSettings();
-			var fileName = Path.Combine(ContentRoot, $"wwwroot{_slash}themes{_slash}{theme.ToLower()}{_slash}settings.json");
+			var fileName = Path.Combine(FileSystemHelpers.ContentRoot, $"wwwroot{_slash}themes{_slash}{theme.ToLower()}{_slash}settings.json");
 			if (File.Exists(fileName))
 			{
 				try
@@ -64,7 +65,7 @@ namespace Blogifier.Core.Providers
 
 		public async Task<bool> SaveThemeSettings(string theme, ThemeSettings settings)
 		{
-			var fileName = Path.Combine(ContentRoot, $"wwwroot{_slash}themes{_slash}{theme.ToLower()}{_slash}settings.json");
+			var fileName = Path.Combine(FileSystemHelpers.ContentRoot, $"wwwroot{_slash}themes{_slash}{theme.ToLower()}{_slash}settings.json");
 			try
 			{
 				if (File.Exists(fileName))
@@ -81,23 +82,6 @@ namespace Blogifier.Core.Providers
 			{
 				Serilog.Log.Error($"Error writing theme settings: {ex.Message}");
 				return false;
-			}
-			return true;
-		}
-
-		public async Task<bool> UploadFormFile(IFormFile file, string path = "")
-		{
-			path = path.Replace("/", _slash);
-			VerifyPath(path);
-
-			var fileName = GetFileName(file.FileName);
-			var filePath = string.IsNullOrEmpty(path) ?
-				 Path.Combine(_storageRoot, fileName) :
-				 Path.Combine(_storageRoot, path + _slash + fileName);
-
-			using (var fileStream = new FileStream(filePath, FileMode.Create))
-			{
-				await file.CopyToAsync(fileStream);
 			}
 			return true;
 		}
@@ -155,50 +139,6 @@ namespace Blogifier.Core.Providers
 		}
 
 		#region Private members
-
-		private string ContentRoot
-		{
-			get
-			{
-				string path = Directory.GetCurrentDirectory();
-				string testsDirectory = $"tests{_slash}Blogifier.Tests";
-				string appDirectory = $"src{_slash}Blogifier";
-
-				// development unit test run
-				if (path.LastIndexOf(testsDirectory) > 0)
-				{
-					path = path.Substring(0, path.LastIndexOf(testsDirectory));
-					return $"{path}src{_slash}Blogifier";
-				}
-
-				// development debug run
-				if (path.LastIndexOf(appDirectory) > 0)
-				{
-					path = path.Substring(0, path.LastIndexOf(appDirectory));
-					return $"{path}src{_slash}Blogifier";
-				}
-				return path;
-			}
-		}
-
-		string GetFileName(string fileName)
-		{
-			// some browsers pass uploaded file name as short file name
-			// and others include the path; remove path part if needed
-			if (fileName.Contains(_slash))
-			{
-				fileName = fileName.Substring(fileName.LastIndexOf(_slash));
-				fileName = fileName.Replace(_slash, "");
-			}
-			// when drag-and-drop or copy image to TinyMce editor
-			// it uses "mceclip0" as file name; randomize it for multiple uploads
-			if (fileName.StartsWith("mceclip0"))
-			{
-				Random rnd = new Random();
-				fileName = fileName.Replace("mceclip0", rnd.Next(100000, 999999).ToString());
-			}
-			return fileName. SanitizePath();
-		}
 
 		void VerifyPath(string path)
 		{

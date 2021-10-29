@@ -34,6 +34,7 @@
 		<ProjectReference Include="..\Blogifier.Files.Backblaze\Blogifier.Files.Backblaze.csproj" />
 		<ProjectReference Include="..\Blogifier.Files.Azure\Blogifier.Files.Azure.csproj" />
 		<ProjectReference Include="..\Blogifier.Files.Google\Blogifier.Files.Google.csproj" />
+		<ProjectReference Include="..\Blogifier.Files.FileSystem\Blogifier.Files.FileSystem.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers.EfCore\Blogifier.Core.Providers.EfCore.csproj" />
 		<ProjectReference Include="..\Blogifier.Core.Providers.MongoDb\Blogifier.Core.Providers.MongoDb.csproj" />

@@ -7,6 +7,9 @@
 <div class="easymde-wrapper">
     <textarea @ref=MdeTextArea id="bf_editor" tabindex="2" class="visually-hidden" placeholder="@_localizer["type-here"]"></textarea>
 </div>
+<div hidden="true" @ref="InputFileContainer">
+    <InputFile OnChange="@OnInputFileChange" />
+</div>
 
 @code {
     [Inject]
@@ -25,13 +28,14 @@
     public EventCallback<string> OnContentChanged { get; set; }
 
     private ElementReference MdeTextArea;
+    private ElementReference InputFileContainer;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             Wrapper.OnInsertFile = () => OnInsertFileAsync();
-            await Wrapper.LoadEditorAsync(ToolbarType == ToolbarType.Full, MdeTextArea);
+            await Wrapper.LoadEditorAsync(ToolbarType == ToolbarType.Full, MdeTextArea, InputFileContainer);
             await JSRuntime.InvokeVoidAsync("commonJsFunctions.setTooltip");
             await Wrapper.SetEditorTextAsync(Content, OnTextChanged);
         }
@@ -80,6 +84,21 @@
         }
 
         await Wrapper.ReplaceSelectionAsync(text);
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        if(e.FileCount == 0) return;
+
+        var parameters = new ModalParameters();
+        parameters.Add(nameof(FileListingModal.BrowserFiles), e.GetMultipleFiles(FileListingComponent.MaxAllowedFiles));
+        var modal = Modal.Show<FileListingModal>("File Selection", parameters, new ModalOptions { ContentScrollable = true });
+        var result = await modal.Result;
+
+        if(!result.Cancelled)
+        {
+            await InsertLinkAsync((FileModel)result.Data);
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -68,16 +68,31 @@
     protected IUploadFileService UploadFileService { get; set; }
 
     [Parameter]
+    public IReadOnlyList<IBrowserFile> BrowserFiles { get; set; }
+    [Parameter]
     public EventCallback<FileModel> OnLink { get; set; }
 
     private ElementReference SearchInput;
     private IList<UploadFileModel> UploadFiles;
     private FileSearchModel FileSearchModel = new();
     private ConcurrentDictionary<string, UploadFileModel> FilesToUpload = new();
-    private int MaxAllowedFiles = 100;
+    public static int MaxAllowedFiles = 100;
 
     protected override async Task OnInitializedAsync()
     {
+        if(BrowserFiles != null)
+        {
+            await UploadFileService.SetupNewFilesAsync(BrowserFiles, uploadFileModel =>
+            {
+                uploadFileModel.UploadState.IsUploadPending = true;
+                uploadFileModel.UploadState.IsEditing = true;
+                if (!FilesToUpload.TryAdd(uploadFileModel.FileModel.Filename, uploadFileModel))
+                {
+                    uploadFileModel.FileModel.HasErrors = false;
+                    uploadFileModel.FileModel.Message = "File upload failed";
+                }
+            });
+        }
         await LoadAsync();
     }
 

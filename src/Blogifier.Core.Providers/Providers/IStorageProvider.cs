@@ -10,7 +10,6 @@ namespace Blogifier.Core.Providers
 	{
 		Task<IList<string>> GetThemes();
 		bool FileExists(string path);
-		Task<bool> UploadFormFile(IFormFile file, string path = "");
 		Task<string> UploadFromWeb(Uri requestUri, string root, string path = "");
 		Task<string> UploadBase64Image(string baseImg, string root, string path = "");
 		Task<ThemeSettings> GetThemeSettings(string theme);

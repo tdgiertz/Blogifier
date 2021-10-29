@@ -20,7 +20,7 @@ namespace Blogifier.Admin.Components
             _jsRuntime = jsRuntime;
         }
 
-        public async Task LoadEditorAsync(bool isFullToolbar, ElementReference mdeReference)
+        public async Task LoadEditorAsync(bool isFullToolbar, ElementReference mdeReference, ElementReference inputFileContainer)
         {
             if(_mdeInstance != null) return;
 
@@ -175,7 +175,7 @@ namespace Blogifier.Admin.Components
 
             _mdeInstance = await wrapper.InvokeAsync<IJSObjectReference>("loadEditor", mdeReference, options);
 
-            await wrapper.InvokeVoidAsync("onPaste", _mdeInstance, JsCallback.Create(() => Task.CompletedTask));
+            await wrapper.InvokeVoidAsync("onPaste", _mdeInstance, inputFileContainer);
         }
 
         public async Task SetEditorTextAsync(string text, Func<string, Task> onTextChanged = null)

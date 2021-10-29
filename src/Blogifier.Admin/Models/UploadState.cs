@@ -5,6 +5,6 @@ namespace Blogifier.Admin.Models
         public int ProgressPercent { get; set; }
         public bool IsUploading { get; set; }
         public bool IsEditing { get; set; }
-        public bool IsUploadPending {get;set;}
+        public bool IsUploadPending { get; set; }
     }
 }

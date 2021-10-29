@@ -108,11 +108,14 @@ namespace Blogifier.Files
                 var fileResult = await _fileStoreProvider.CreateAsync(filePath, formFile.OpenReadStream());
                 string? thumbnailFilePath = null;
 
-                if(_thumbnailSetting.IsEnabled && (formFile.ContentType?.StartsWith("image") ?? false))
+                var contentType = formFile.ContentType ?? MimeMapping.MimeUtility.GetMimeMapping(formFile.FileName);
+
+                if(_thumbnailSetting.IsEnabled && (contentType?.StartsWith("image") ?? false))
                 {
                     using var stream = formFile.OpenReadStream();
-                    var thumbnailStream = await ImageProcessor.ResizeImageAsync(stream, _thumbnailSetting.Width, _thumbnailSetting.Height);
+                    using var thumbnailStream = await ImageProcessor.ResizeImageAsync(stream, _thumbnailSetting.Width, _thumbnailSetting.Height);
                     thumbnailFilePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, formFile.FileName);
+                    thumbnailStream.Position = 0;
                     var thumbnailFileResult = await _fileStoreProvider.CreateAsync(thumbnailFilePath, thumbnailStream);
                 }
 

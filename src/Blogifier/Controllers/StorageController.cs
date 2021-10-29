@@ -1,9 +1,6 @@
 using Blogifier.Core.Providers;
-using Blogifier.Shared;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -38,48 +35,6 @@ namespace Blogifier.Controllers
 		public async Task<IActionResult> FileExists([FromBody] string path)
 		{
 			return (await Task.FromResult(_storageProvider.FileExists(path))) ? Ok() : BadRequest();
-		}
-
-		[Authorize]
-		[HttpPost("upload/{uploadType}")]
-		public async Task<ActionResult> Upload(IFormFile file, UploadType uploadType, Guid postId = default(Guid))
-		{
-			var author = await _authorProvider.FindByEmail(User.Identity.Name);
-			var post = postId == default(Guid) ? new Post { Id = Guid.NewGuid() } : await _postProvider.GetPostById(postId);
-
-            var path = $"{author.Id}/{DateTime.Now.Year}/{DateTime.Now.Month}";
-			var fileName = $"data/{path}/{file.FileName}";
-
-            if (uploadType == UploadType.PostImage)
-                fileName = Url.Content("~/") + fileName;
-
-			if (await _storageProvider.UploadFormFile(file, path))
-			{
-				var blog = await _blogProvider.GetBlog();
-
-				switch (uploadType)
-				{
-					case UploadType.Avatar:
-						author.Avatar = fileName;
-						return (await _authorProvider.Update(author)) ? new JsonResult(fileName) : BadRequest();
-					case UploadType.AppLogo:
-						blog.Logo = fileName;
-						return (await _blogProvider.Update(blog)) ? new JsonResult(fileName) : BadRequest();
-					case UploadType.AppCover:
-						blog.Cover = fileName;
-						return (await _blogProvider.Update(blog)) ? new JsonResult(fileName) : BadRequest();
-					case UploadType.PostCover:
-						post.Cover = fileName;
-                        return new JsonResult(fileName);
-                    case UploadType.PostImage:
-						return new JsonResult(fileName);
-				}
-				return Ok();
-			}
-			else
-			{
-				return BadRequest();
-			}
 		}
 	}
 }

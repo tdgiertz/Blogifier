@@ -25,7 +25,7 @@ function getToolbarItems(options) {
       noDisable: !item.canDisable
     };
 
-    if(item.className !== '') {
+    if(item.className !== '' && item.className !== null) {
       tbItem.className = item.className;
     }
 
@@ -114,9 +114,14 @@ export function replaceSelection(easymde, value) {
   easymde.codemirror.replaceSelection(value);
 }
 
-export function onPaste(easymde, callback) {
+export function onPaste(easymde, inputFileContainer) {
+  const inputFile = inputFileContainer.querySelector("input");
   easymde.codemirror.on("paste", function (self, event) {
-    callback();
+    inputFile.files = event.clipboardData.files;
+    const e = new Event('change', { bubbles: true });
+    inputFile.dispatchEvent(e);
+
+    event.preventDefault();
   });
 }
 
