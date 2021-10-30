@@ -25,7 +25,6 @@ namespace Blogifier.Files.Google
 
         public GoogleFileStoreProvider(FileStoreConfiguration configuration)
         {
-            configuration.BasePath ??= "";
             if (string.IsNullOrEmpty(configuration.StoreName))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
@@ -37,10 +36,6 @@ namespace Blogifier.Files.Google
             if (configuration.UrlExpirationMinutes <= 0)
             {
                 throw new System.ArgumentException("Argument property invalid", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.UrlExpirationMinutes)}");
-            }
-            if (string.IsNullOrEmpty(configuration.ThumbnailBasePath))
-            {
-                configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
             }
 
             GoogleCredential? googleCredential = null;
@@ -196,7 +191,7 @@ namespace Blogifier.Files.Google
             }
         }
 
-        public async IAsyncEnumerable<FileResult> ListAsync()
+        public async IAsyncEnumerable<FileResult> ListAsync(string objectPath)
         {
             var onlyCurrentDirectoryOptions = new ListObjectsOptions
             {

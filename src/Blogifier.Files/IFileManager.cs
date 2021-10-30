@@ -8,6 +8,8 @@ namespace Blogifier.Files
 {
     public interface IFileManager
     {
+        Task<string> GetBasePath();
+        Task<string> GetThumbnailBasePath();
         Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request);
         Task<PagedResult<FileModel>> GetPagedAsync(FileSearchModel searchModel);
         Task<FileModel> GetAsync(Guid id);

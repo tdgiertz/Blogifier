@@ -6,7 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Serilog.Sinks.GoogleCloudLogging;
 using System;
 using System.IO;
 using System.Linq;
@@ -18,8 +17,6 @@ namespace Blogifier
         public static void Main(string[] args)
         {
             var host = CreateHostBuilder(args).Build();
-
-            GoogleCloudLoggingSinkOptions config;
 
             using (var scope = host.Services.CreateScope())
             {
@@ -41,21 +38,31 @@ namespace Blogifier
 
                 section = configuration.GetSection("Log");
 
-                if(section.GetValue<string>("Provider") == "Google")
+                var logConfig = new LoggerConfiguration();
+
+#if DEBUG
+                logConfig = logConfig
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console();
+#else
+
+                if (section.GetValue<string>("Provider") == "Google")
                 {
-                    config = new GoogleCloudLoggingSinkOptions { ProjectId = section.GetValue<string>("Resource"), UseJsonOutput = true };
-                    Log.Logger = new LoggerConfiguration()
+                    var config = new GoogleCloudLoggingSinkOptions { ProjectId = section.GetValue<string>("Resource"), UseJsonOutput = true };
+                    logConfig = logConfig
                         .Enrich.FromLogContext()
-                        .WriteTo.GoogleCloudLogging(config)
-                        .CreateLogger();
+                        .WriteTo.GoogleCloudLogging(config);
                 }
                 else
                 {
-                    Log.Logger = new LoggerConfiguration()
+                    logConfig = logConfig
                         .Enrich.FromLogContext()
-                        .WriteTo.Console()
-                        .CreateLogger();
+                        .WriteTo.Console();
                 }
+
+#endif
+
+                Log.Logger = logConfig.CreateLogger();
             }
 
             try

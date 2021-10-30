@@ -22,7 +22,6 @@ namespace Blogifier.Files.Azure
 
         public AzureFileStoreProvider(FileStoreConfiguration configuration)
         {
-            configuration.BasePath ??= "";
             if(string.IsNullOrEmpty(configuration.StoreName))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.StoreName)}");
@@ -30,10 +29,6 @@ namespace Blogifier.Files.Azure
             if(configuration.UrlExpirationMinutes <= 0)
             {
                 throw new System.ArgumentException("Argument property invalid", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.UrlExpirationMinutes)}");
-            }
-            if(string.IsNullOrEmpty(configuration.ThumbnailBasePath))
-            {
-                configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
             }
 
             var blobServiceClient = new BlobServiceClient(configuration.AuthenticationKey);
@@ -148,7 +143,7 @@ namespace Blogifier.Files.Azure
             }
         }
 
-        public async IAsyncEnumerable<FileResult> ListAsync()
+        public async IAsyncEnumerable<FileResult> ListAsync(string objectPath)
         {
             var containerUri = _containerClient.Uri;
             await foreach (var item in _containerClient.GetBlobsByHierarchyAsync(delimiter: "/"))

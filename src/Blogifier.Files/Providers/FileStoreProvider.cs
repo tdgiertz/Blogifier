@@ -45,7 +45,7 @@ namespace Blogifier.Files.Providers
             throw new System.NotImplementedException();
         }
 
-        public IAsyncEnumerable<FileResult> ListAsync()
+        public IAsyncEnumerable<FileResult> ListAsync(string objectPath)
         {
             throw new System.NotImplementedException();
         }

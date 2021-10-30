@@ -15,6 +15,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Blogifier.Shared\Blogifier.Shared.csproj" />
+		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
 	</ItemGroup>
 
 </Project>

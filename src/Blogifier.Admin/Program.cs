@@ -1,5 +1,5 @@
 using Blazored.Modal;
-using Blogifier.Admin.Components;
+using Blogifier.Admin.Components.Editor;
 using Blogifier.Admin.Serivces;
 using Blogifier.Shared;
 using Microsoft.AspNetCore.Components.Authorization;

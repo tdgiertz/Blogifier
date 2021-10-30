@@ -21,7 +21,6 @@ namespace Blogifier.Files.Aws
 
         public AwsFileStoreProvider(FileStoreConfiguration configuration)
         {
-            configuration.BasePath ??= "";
             CheckConfiguration(configuration);
 
             var endpoint = Amazon.RegionEndpoint.GetBySystemName(configuration.Endpoint);
@@ -32,7 +31,6 @@ namespace Blogifier.Files.Aws
 
         public AwsFileStoreProvider(FileStoreConfiguration configuration, string serviceUrl)
         {
-            configuration.BasePath ??= "";
             CheckConfiguration(configuration);
 
             var config = new AmazonS3Config
@@ -65,10 +63,6 @@ namespace Blogifier.Files.Aws
             if (string.IsNullOrEmpty(configuration.PublicUrlTemplate))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.PublicUrlTemplate)}");
-            }
-            if (string.IsNullOrEmpty(configuration.ThumbnailBasePath))
-            {
-                configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
             }
         }
 
@@ -196,7 +190,7 @@ namespace Blogifier.Files.Aws
             }
         }
 
-        public async IAsyncEnumerable<FileResult> ListAsync()
+        public async IAsyncEnumerable<FileResult> ListAsync(string objectPath)
         {
             var paginator = _storageClient.Paginators.ListObjectsV2(new ListObjectsV2Request
             {

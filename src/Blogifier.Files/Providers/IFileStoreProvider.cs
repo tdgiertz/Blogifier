@@ -14,6 +14,6 @@ namespace Blogifier.Files.Providers
         Task<bool> ExistsAsync(string objectPath);
         Task<FileResult> CreateAsync(string objectPath, Stream stream);
         Task<bool> DeleteAsync(string objectPath);
-        IAsyncEnumerable<FileResult> ListAsync();
+        IAsyncEnumerable<FileResult> ListAsync(string objectPath);
     }
 }

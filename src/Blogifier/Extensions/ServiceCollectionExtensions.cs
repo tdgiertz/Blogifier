@@ -80,8 +80,8 @@ namespace Blogifier.Extensions
                 AuthenticationKeyId = section["AuthenticationKeyId"],
                 Endpoint = section["Endpoint"],
                 AuthenticationKeySource = Enum.Parse<KeySource>(section["KeySource"]),
-                BasePath = section["BasePath"],
-                ThumbnailBasePath = section["ThumbnailBasePath"],
+                BasePathTemplate = section["BasePathTemplate"],
+                ThumbnailBasePathTemplate = section["ThumbnailBasePathTemplate"],
                 StoreName = section["StoreName"],
                 PublicUrlTemplate = section["PublicUrlTemplate"],
                 AccountId = section["AccountId"]

@@ -18,24 +18,9 @@ namespace Blogifier.Files.FileSystem
 
         public FileSystemFileStoreProvider(FileStoreConfiguration configuration)
         {
-            configuration.BasePath ??= "";
-
-            if(Path.IsPathRooted(configuration.BasePath))
-            {
-                throw new System.ArgumentException("Path should be relative", nameof(configuration.BasePath));
-            }
-
             if (string.IsNullOrEmpty(configuration.PublicUrlTemplate))
             {
                 throw new System.ArgumentException("Argument property required", $"{nameof(FileStoreConfiguration)}.{nameof(FileStoreConfiguration.PublicUrlTemplate)}");
-            }
-            if (string.IsNullOrEmpty(configuration.ThumbnailBasePath))
-            {
-                configuration.ThumbnailBasePath = Path.Combine(configuration.BasePath, "Thumbnails");
-            }
-            if(Path.IsPathRooted(configuration.ThumbnailBasePath))
-            {
-                throw new System.ArgumentException("Path should be relative", nameof(configuration.ThumbnailBasePath));
             }
 
             _configuration = configuration;
@@ -68,16 +53,30 @@ namespace Blogifier.Files.FileSystem
 
         public async Task<bool> ExistsAsync(string objectPath)
         {
+            if(Path.IsPathRooted(objectPath))
+            {
+                throw new System.ArgumentException("Path should be relative", nameof(objectPath));
+            }
+
             var fullPath = Path.Combine(GetRootPath(), objectPath);
             return await Task.FromResult(File.Exists(fullPath));
         }
 
         public async Task<FileResult> CreateAsync(string objectPath, Stream stream)
         {
+            if(Path.IsPathRooted(objectPath))
+            {
+                throw new System.ArgumentException("Path should be relative", nameof(objectPath));
+            }
             var filename = Path.GetFileName(objectPath);
             var mimeType = MimeUtility.GetMimeMapping(filename);
 
             var fullPath = Path.Combine(GetRootPath(), objectPath);
+            var folderPath = Path.GetDirectoryName(fullPath);
+            if(folderPath != null && !Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
             using var fileStream = new FileStream(fullPath, FileMode.Create);
             await stream.CopyToAsync(fileStream);
 
@@ -95,6 +94,10 @@ namespace Blogifier.Files.FileSystem
         {
             try
             {
+                if(Path.IsPathRooted(objectPath))
+                {
+                    throw new System.ArgumentException("Path should be relative", nameof(objectPath));
+                }
                 var fullPath = Path.Combine(GetRootPath(), objectPath);
                 File.Delete(fullPath);
 
@@ -107,10 +110,11 @@ namespace Blogifier.Files.FileSystem
             }
         }
 
-        public async IAsyncEnumerable<FileResult> ListAsync()
+        public async IAsyncEnumerable<FileResult> ListAsync(string objectPath)
         {
             var rootPath = GetRootPath();
-            foreach(var file in Directory.GetFiles(_configuration.BasePath, "*", SearchOption.TopDirectoryOnly))
+            var fullPath = Path.Combine(rootPath, objectPath);
+            foreach(var file in Directory.GetFiles(fullPath, "*", SearchOption.TopDirectoryOnly))
             {
                 var filename = Path.GetFileName(file);
                 var mimeType = MimeMapping.MimeUtility.GetMimeMapping(filename);

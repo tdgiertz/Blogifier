@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using Serilog;
 using Blogifier.Shared.Models;
 using Blogifier.Files.Extensions;
+using System.IO;
+using Blogifier.Core.Providers;
 
 namespace Blogifier.Files
 {
@@ -17,18 +19,37 @@ namespace Blogifier.Files
         private readonly IFileStoreProvider _fileStoreProvider;
         private readonly IFileDescriptorProvider _fileDescriptorProvider;
         private readonly Models.FileStoreConfiguration _fileStoreConfiguration;
+        private readonly ICurrentUserProvider _currentUserProvider;
+        private readonly IAuthorProvider _authorProvider;
 
-        public FileManager(IFileStoreProvider fileStoreProvider, IFileDescriptorProvider fileDescriptorProvider, Models.FileStoreConfiguration configuration, ThumbnailSetting thumbnailSetting)
+        public FileManager(IFileStoreProvider fileStoreProvider, IFileDescriptorProvider fileDescriptorProvider, Models.FileStoreConfiguration configuration,
+            ThumbnailSetting thumbnailSetting, ICurrentUserProvider currentUserProvider, IAuthorProvider authorProvider)
         {
             _fileStoreProvider = fileStoreProvider;
             _fileDescriptorProvider = fileDescriptorProvider;
             _fileStoreConfiguration = configuration;
             _thumbnailSetting = thumbnailSetting;
+            _currentUserProvider = currentUserProvider;
+            _authorProvider = authorProvider;
+            if (string.IsNullOrEmpty(configuration.ThumbnailBasePathTemplate))
+            {
+                configuration.ThumbnailBasePathTemplate = Path.Combine(configuration.BasePathTemplate ?? string.Empty, "Thumbnails");
+            }
+        }
+
+        public async Task<string> GetBasePath()
+        {
+            return await _fileStoreConfiguration.GetBasePathAsync(GetAuthorIdFunc());
+        }
+
+        public async Task<string> GetThumbnailBasePath()
+        {
+            return await _fileStoreConfiguration.GetThumbnailBasePathAsync(GetAuthorIdFunc());
         }
 
         public async Task<SignedUrlResponse> GetSignedUrlAsync(SignedUrlRequest request)
         {
-            var objectPath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, request.Filename);
+            var objectPath = System.IO.Path.Combine(await GetBasePath(), request.Filename);
             var generateSignedUrl = new GenerateSignedUrl
             {
                 Filename = request.Filename,
@@ -37,15 +58,15 @@ namespace Blogifier.Files
 
             if (request.ShouldGenerateThumbnailUrl)
             {
-                generateSignedUrl.ThumbnailFilePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, request.Filename);
+                generateSignedUrl.ThumbnailFilePath = System.IO.Path.Combine(await GetBasePath(), request.Filename);
             }
 
             var response = await _fileStoreProvider.GetSignedUrlAsync(generateSignedUrl);
 
             var fileDescriptor = response.ToFileDescriptor();
 
-            fileDescriptor.RelativePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, request.Filename);
-            fileDescriptor.ThumbnailRelativePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, request.Filename);
+            fileDescriptor.RelativePath = System.IO.Path.Combine(await GetBasePath(), request.Filename);
+            fileDescriptor.ThumbnailRelativePath = System.IO.Path.Combine(await GetThumbnailBasePath(), request.Filename);
             fileDescriptor.DateCreated = DateTime.UtcNow;
             fileDescriptor.Id = Guid.NewGuid();
 
@@ -54,7 +75,7 @@ namespace Blogifier.Files
                 throw new Exception("Failed to create file descriptor");
             }
 
-            var fileModel = fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
+            var fileModel = fileDescriptor.ToFileModel(await GetUrlAsync(fileDescriptor), await GetThumbnailUrlAsync(fileDescriptor));
 
             fileModel.Url = response.FileModel.Url;
             fileModel.RelativePath = response.FileModel.RelativePath;
@@ -71,12 +92,12 @@ namespace Blogifier.Files
 
             var accountName = _fileStoreProvider.GetAccountName();
 
-            Func<FileDescriptor, string> getUrl = fd => _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fd.Filename, fd.RelativePath, accountName);
-            Func<FileDescriptor, string> getThumbnailUrl = fd => _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fd.Filename, fd.ThumbnailRelativePath, accountName);
-
             return new PagedResult<FileModel>
             {
-                Results = fileDescriptors.Select(d => d.ToFileModel(GetUrl(d), GetThumbnailUrl(d))).ToList(),
+                Results = fileDescriptors
+                    .Select(async d => d.ToFileModel(await GetUrlAsync(d), await GetThumbnailUrlAsync(d)))
+                    .Select(t => t.Result)
+                    .ToList(),
                 PagingDescriptor = searchModel.PagingDescriptor
             };
         }
@@ -87,15 +108,15 @@ namespace Blogifier.Files
 
             var accountName = _fileStoreProvider.GetAccountName();
 
-            return fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
+            return fileDescriptor.ToFileModel(await GetUrlAsync(fileDescriptor), await GetThumbnailUrlAsync(fileDescriptor));
         }
 
         public async Task<FileModel> GetAsync(string filename)
         {
-            var filePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, filename);
+            var filePath = System.IO.Path.Combine(await GetBasePath(), filename);
             var fileDescriptor = await _fileDescriptorProvider.GetAsync(filePath);
 
-            return fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
+            return fileDescriptor.ToFileModel(await GetUrlAsync(fileDescriptor), await GetThumbnailUrlAsync(fileDescriptor));
         }
 
         public async Task<FileModel> CreateAsync(IFormFile formFile)
@@ -104,7 +125,7 @@ namespace Blogifier.Files
             FileDescriptor fileDescriptor;
             try
             {
-                var filePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, formFile.FileName);
+                var filePath = System.IO.Path.Combine(await GetBasePath(), formFile.FileName);
                 var fileResult = await _fileStoreProvider.CreateAsync(filePath, formFile.OpenReadStream());
                 string? thumbnailFilePath = null;
 
@@ -114,7 +135,7 @@ namespace Blogifier.Files
                 {
                     using var stream = formFile.OpenReadStream();
                     using var thumbnailStream = await ImageProcessor.ResizeImageAsync(stream, _thumbnailSetting.Width, _thumbnailSetting.Height);
-                    thumbnailFilePath = System.IO.Path.Combine(_fileStoreConfiguration.ThumbnailBasePath, formFile.FileName);
+                    thumbnailFilePath = System.IO.Path.Combine(await GetThumbnailBasePath(), formFile.FileName);
                     thumbnailStream.Position = 0;
                     var thumbnailFileResult = await _fileStoreProvider.CreateAsync(thumbnailFilePath, thumbnailStream);
                 }
@@ -136,7 +157,7 @@ namespace Blogifier.Files
             try
             {
                 await _fileDescriptorProvider.InsertAsync(fileDescriptor);
-                fileModel = fileDescriptor.ToFileModel(GetUrl(fileDescriptor), GetThumbnailUrl(fileDescriptor));
+                fileModel = fileDescriptor.ToFileModel(await GetUrlAsync(fileDescriptor), await GetThumbnailUrlAsync(fileDescriptor));
             }
             catch (Exception ex)
             {
@@ -207,7 +228,7 @@ namespace Blogifier.Files
 
         public async Task<bool> ExistsAsync(string filename)
         {
-            var filePath = System.IO.Path.Combine(_fileStoreConfiguration.BasePath, filename);
+            var filePath = System.IO.Path.Combine(await GetBasePath(), filename);
             return await _fileDescriptorProvider.ExistsAsync(filePath);
         }
 
@@ -217,10 +238,10 @@ namespace Blogifier.Files
             var filenameLookup = fileDescriptors.ToDictionary(k => k.Filename, v => v);
 
             var importList = new List<FileResult>();
-
             var existingFiles = new HashSet<string>();
+            var path = await GetBasePath();
 
-            await foreach (var file in _fileStoreProvider.ListAsync())
+            await foreach (var file in _fileStoreProvider.ListAsync(path))
             {
                 if (!filenameLookup.ContainsKey(file.Filename))
                 {
@@ -234,14 +255,14 @@ namespace Blogifier.Files
 
             var toRemove = filenameLookup.Where(f => !existingFiles.Contains(f.Key)).Select(f => f.Value);
 
-            var removeFileModels = toRemove.Select(fd => new SyncronizationModel
+            var removeFileModels = toRemove.Select(async fd => new SyncronizationModel
             {
                 Filename = fd.Filename,
                 MimeType = fd.MimeType,
-                Url = GetUrl(fd),
+                Url = await GetUrlAsync(fd),
                 DateCreated = fd.DateCreated,
                 Description = fd.Description
-            });
+            }).Select(t => t.Result);
 
             var importFileModels = importList.Select(fr => new SyncronizationModel
             {
@@ -257,16 +278,29 @@ namespace Blogifier.Files
             };
         }
 
-        private string GetUrl(FileDescriptor fileDescriptor)
+        private async Task<string> GetUrlAsync(FileDescriptor fileDescriptor)
         {
             var accountName = _fileStoreProvider.GetAccountName();
-            return _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fileDescriptor.Filename, fileDescriptor.RelativePath, accountName);
+            var getAuthorId = GetAuthorIdFunc();
+            return await _fileStoreConfiguration.ReplacePublicUrlTemplateValuesAsync(fileDescriptor.Filename, fileDescriptor.RelativePath, getAuthorId, accountName);
         }
 
-        private string GetThumbnailUrl(FileDescriptor fileDescriptor)
+        private async Task<string> GetThumbnailUrlAsync(FileDescriptor fileDescriptor)
         {
             var accountName = _fileStoreProvider.GetAccountName();
-            return _fileStoreConfiguration.ReplacePublicUrlTemplateValues(fileDescriptor.Filename, fileDescriptor.ThumbnailRelativePath, accountName);
+            var getAuthorId = GetAuthorIdFunc();
+            return await _fileStoreConfiguration.ReplacePublicUrlTemplateValuesAsync(fileDescriptor.Filename, fileDescriptor.ThumbnailRelativePath, getAuthorId, accountName);
+        }
+
+        private Func<Task<Guid>> GetAuthorIdFunc()
+        {
+            Guid guid = Guid.Empty;
+            return () =>
+            {
+                if(guid != Guid.Empty) return Task.FromResult(guid);
+
+                return _authorProvider.FindByEmail(_currentUserProvider.UserName).ContinueWith(async authorTask => (guid = (await authorTask).Id)).Unwrap();
+            };
         }
     }
 }

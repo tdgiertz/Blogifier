@@ -40,29 +40,11 @@ namespace Blogifier.Controllers
         [HttpGet("getcurrent")]
         public async Task<ActionResult<Author>> GetCurrentAuthor()
         {
-            GetLocalIPAddress();
             if (User.Identity.IsAuthenticated)
             {
                 return await FindByEmail(User.FindFirstValue(ClaimTypes.Name));
             }
             return new Author();
-        }
-
-        public static void GetLocalIPAddress()
-        {
-            try
-            {
-                var url = "http://checkip.dyndns.org";
-                var req = System.Net.WebRequest.Create(url);
-                var resp = req.GetResponse();
-                var sr = new System.IO.StreamReader(resp.GetResponseStream());
-                var response = sr.ReadToEnd().Trim();
-                Log.Information($"IP Address: {response}");
-            }
-            catch
-            {
-                Log.Information($"IP Address lookup failed");
-            }
         }
 
         [Authorize]

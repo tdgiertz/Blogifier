@@ -5,7 +5,7 @@ using Blogifier.Admin.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
-namespace Blogifier.Admin.Components
+namespace Blogifier.Admin.Components.Editor
 {
     public class EasyMdeWrapper
     {
