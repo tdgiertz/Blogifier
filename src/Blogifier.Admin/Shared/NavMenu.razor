@@ -7,7 +7,7 @@
 @if (author != null)
 {
     <nav class="menu">
-        <div class="container d-flex">
+        <div class="container d-flex justify-content-between g-3">
             <ul class="menu-list d-flex">
                 <li class="menu-item">
                     <NavLink class="menu-link" href="/admin/" Match="NavLinkMatch.All" title="@_localizer["dashboard"]" data-bs-toggle="tooltip" data-bs-placement="bottom">
@@ -49,7 +49,7 @@
                     </NavLink>
                 </li>
             </ul>
-            <ul class="menu-list d-flex ms-auto">
+            <ul class="menu-list d-flex">
                 @if (author.IsAdmin)
                 {
                     <li class="menu-item">

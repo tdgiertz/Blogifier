@@ -5,8 +5,8 @@
 
 @if(UploadFileModel != null)
 {
-    <div class="row">
-        <div class="col-1">
+    <div class="row justify-content-center">
+        <div class="mb-2 mb-md-0 col-12 col-md-3 col-xl-1 text-center">
             @if(ShouldShowImage())
             {
                 @if(UseObjectTag())
@@ -19,31 +19,33 @@
                 }
             }
         </div>
-        <div class="col-9">
-            <div class="d-flex w-100 justify-content-between">
+        <div class="mb-2 mb-md-0 col-12 col-md-7 col-xl-9">
+            <div class="d-flex flex-column-reverse flex-md-row justify-content-between">
                 @if(UploadFileModel.UploadState.IsUploadPending)
                 {
                     <input type="text" class="form-control form-control-sm" @bind="UploadFileModel.FileModel.Filename">
                 }
                 else
                 {
-                    <h4 class="mb-1">@UploadFileModel.FileModel.Filename</h4>
+                    <h4 class="mb-1 text-center">@UploadFileModel.FileModel.Filename</h4>
                     @if(!UploadFileModel.UploadState.IsUploading && !UploadFileModel.UploadState.IsUploadPending)
                     {
-                        <label>@UploadFileModel.FileModel.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
+                        <label class="text-center">@UploadFileModel.FileModel.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
                     }
                 }
             </div>
-            @if(UploadFileModel.UploadState.IsEditing && !UploadFileModel.UploadState.IsUploading)
-            {
-                <textarea class="form-control form-control-sm" @bind="UploadFileModel.FileModel.Description" rows="1" placeholder="@_localizer["type-here"]"></textarea>
-            }
-            else
-            {
-                <label class="text-muted mt-1">@UploadFileModel.FileModel.Description</label>
-            }
+            <div class="d-flex justify-content-center justify-content-md-start">
+                @if(UploadFileModel.UploadState.IsEditing && !UploadFileModel.UploadState.IsUploading)
+                {
+                    <textarea class="form-control form-control-sm" @bind="UploadFileModel.FileModel.Description" rows="1" placeholder="@_localizer["type-here"]"></textarea>
+                }
+                else
+                {
+                    <label class="text-muted">@UploadFileModel.FileModel.Description</label>
+                }
+            </div>
         </div>
-        <div class="col-2 align-self-center">
+        <div class="col-9 col-md-2 align-self-center">
             @if(UploadFileModel.UploadState.IsUploading)
             {
                 <div class="progress">
