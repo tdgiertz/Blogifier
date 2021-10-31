@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -36,7 +37,7 @@ namespace Blogifier
                 .ProtectKeysWithGoogleKms(
                     Configuration["DataProtection:KmsKeyName"]);
 
-            services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
+            services.AddLocalization(opts => { opts.ResourcesPath = ""; });
 
             services.AddAuthentication(options =>
             {
