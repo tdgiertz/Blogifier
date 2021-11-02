@@ -14,7 +14,7 @@
 
 <div class="list-toolbar">
 
-    <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
+    <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
         <input type="checkbox" @onchange="EventArgs => { CheckAll(EventArgs.Value); }" class="list-check-input form-check-input">
     </label>
 
@@ -91,7 +91,7 @@
             }
 
             <li class="list-item">
-                <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select"]">
+                <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select"]">
                     <input type="checkbox" @bind="post.Selected" class="list-check-input form-check-input">
                 </label>
                 <a class="list-title -link" href="/admin/editor/@post.Slug">

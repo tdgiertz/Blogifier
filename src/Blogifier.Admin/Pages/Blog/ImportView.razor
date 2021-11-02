@@ -33,7 +33,7 @@ else {
     <div class="section-content">
         <div class="section-title">@Posts.Count @_localizer["import-message-found"].</div>
         <div class="list-toolbar">
-            <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
+            <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
                 <input type="checkbox" class="list-check-input form-check-input" @onchange="EventArgs => { CheckAll(EventArgs.Value); }">
                 <span>@_localizer["import-all"]</span>
             </label>
@@ -42,7 +42,7 @@ else {
             @foreach (var post in Posts)
             {
                 <li class="list-item">
-                    <label class="list-check form-check" id="@post.Slug" data-bs-toggle="tooltip" title="@_localizer["select"]">
+                    <label class="form-check" id="@post.Slug" data-bs-toggle="tooltip" title="@_localizer["select"]">
                         <input type="checkbox" class="list-check-input form-check-input" style="display: block" @bind="post.Selected">
                     </label>
                     <span class="list-icon ps-0 pe-3" id="s-@post.Slug" style="display:none;">

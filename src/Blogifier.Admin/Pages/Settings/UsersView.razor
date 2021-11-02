@@ -11,7 +11,7 @@
     <h1 class="section-title">@_localizer["users-settings"]</h1>
     <div class="section-content">
         <div class="list-toolbar">
-            <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
+            <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
                 <input type="checkbox" class="list-check-input form-check-input">
             </label>
             <button class="btn btn-blogifier btn-rounded -add me-3" type="button" @onclick="(()=> LoadForm(string.Empty))" @onclick:preventDefault>
@@ -50,7 +50,7 @@
             @foreach (var item in AuthorItems)
             {
                <li class="list-item">
-                  <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select"]">
+                  <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select"]">
                      <input type="checkbox" class="list-check-input form-check-input" @bind="item.Selected">
                   </label>
                   <a class="list-title -link" href="#" @onclick="(()=> LoadForm(item.Author.Email))" @onclick:preventDefault>@item.Author.DisplayName</a>
