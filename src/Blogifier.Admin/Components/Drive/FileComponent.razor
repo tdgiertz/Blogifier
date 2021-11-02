@@ -21,7 +21,7 @@
         </div>
         <div class="mb-2 mb-md-0 col-12 col-md-7 col-xl-9">
             <div class="d-flex flex-column-reverse flex-md-row justify-content-between">
-                @if(UploadFileModel.UploadState.IsUploadPending)
+                @if(UploadFileModel.UploadState.IsEditing && UploadFileModel.UploadState.IsUploadPending)
                 {
                     <input type="text" class="form-control form-control-sm" @bind="UploadFileModel.FileModel.Filename">
                 }

@@ -60,6 +60,7 @@ namespace Blogifier.Admin.Serivces
                     await _fileService.SaveAsync(uploadFileModel.FileModel);
                 }
 
+                uploadFileModel.UploadState.IsEditing = true;
                 uploadFileModel.UploadState.IsUploading = false;
                 uploadFileModel.UploadState.IsUploadPending = uploadFileModel.FileModel.HasErrors;
 

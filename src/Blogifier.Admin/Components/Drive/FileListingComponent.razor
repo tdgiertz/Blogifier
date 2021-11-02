@@ -140,6 +140,8 @@
             var distinctFiles = files.Where(f => !FilesToUpload.ContainsKey(f.Name));
             var uploadFileModels = await UploadFileService.SetupNewFilesAsync(distinctFiles, uploadFileModel =>
             {
+                uploadFileModel.UploadState.IsUploadPending = true;
+                uploadFileModel.UploadState.IsEditing = false;
                 if (!FilesToUpload.TryAdd(uploadFileModel.FileModel.Filename, uploadFileModel))
                 {
                     uploadFileModel.FileModel.HasErrors = false;
