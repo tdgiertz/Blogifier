@@ -30,7 +30,34 @@ namespace Blogifier.Core.Providers.EfCore
                         Category = c.Content.ToLower(),
                         PostCount = c.Posts.Count(),
                         DateCreated = c.DateCreated
-                    }).ToListAsync();
+                    })
+                    .OrderBy(c => c.Category)
+                    .ToListAsync();
+
+                return categories;
+            }
+
+            return await Task.FromResult(new List<CategoryItem>());
+        }
+
+        public async Task<List<CategoryItem>> GetPublishedCategories()
+        {
+            if (_db.Posts != null && _db.Posts.Count() > 0)
+            {
+                var categories = await _db.Categories
+                    .Include(c => c.Posts)
+                    .Where(c => c.Posts.Any(p => p.Published != DateTime.MinValue))
+                    .AsNoTracking()
+                    .Select(c => new CategoryItem
+                    {
+                        Selected = false,
+                        Id = c.Id,
+                        Category = c.Content.ToLower(),
+                        PostCount = c.Posts.Count(),
+                        DateCreated = c.DateCreated
+                    })
+                    .OrderBy(c => c.Category)
+                    .ToListAsync();
 
                 return categories;
             }

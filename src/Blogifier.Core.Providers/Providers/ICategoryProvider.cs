@@ -8,6 +8,7 @@ namespace Blogifier.Core.Providers
     public interface ICategoryProvider
 	{
         Task<List<CategoryItem>> Categories();
+        Task<List<CategoryItem>> GetPublishedCategories();
         Task<List<Category>> GetCategoriesAsync();
         Task<List<CategoryItem>> SearchCategories(string term);
         Task<Category> GetCategory(Guid categoryId);

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Serilog.Sinks.GoogleCloudLogging;
 using System;
 using System.IO;
 using System.Linq;
@@ -45,7 +46,6 @@ namespace Blogifier
                     .Enrich.FromLogContext()
                     .WriteTo.Console();
 #else
-
                 if (section.GetValue<string>("Provider") == "Google")
                 {
                     var config = new GoogleCloudLoggingSinkOptions { ProjectId = section.GetValue<string>("Resource"), UseJsonOutput = true };

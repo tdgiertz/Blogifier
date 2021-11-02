@@ -5,6 +5,7 @@ using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace Blogifier.Core.Providers.MongoDb
@@ -20,8 +21,24 @@ namespace Blogifier.Core.Providers.MongoDb
 
         public async Task<List<CategoryItem>> Categories()
         {
-            var postCategories = await _postCollection
-                .Aggregate()
+            return await GetCategoryItemsAsync();
+        }
+
+        public async Task<List<CategoryItem>> GetPublishedCategories()
+        {
+            return await GetCategoryItemsAsync(c => c.Published != DateTime.MinValue);
+        }
+
+        private async Task<List<CategoryItem>> GetCategoryItemsAsync(Expression<Func<Post, bool>> predicate = null)
+        {
+            var aggregate = _postCollection.Aggregate();
+
+            if(predicate != null)
+            {
+                aggregate = aggregate.Match(predicate);
+            }
+
+            var postCategories = await aggregate
                 .Unwind<Post, CategoryUnwound>(p => p.Categories)
                 .Group(c => c.Categories.Content, g => new
                 {
@@ -39,7 +56,9 @@ namespace Blogifier.Core.Providers.MongoDb
                 Category = c.Content.ToLower(),
                 PostCount = c.PostCount,
                 DateCreated = c.DateCreated
-            }).ToList();
+            })
+            .OrderBy(c => c.Category)
+            .ToList();
 
             return categories;
         }

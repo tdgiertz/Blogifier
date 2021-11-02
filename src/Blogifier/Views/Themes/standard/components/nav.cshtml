@@ -5,7 +5,7 @@
 @inject IAuthorProvider _authorProvider
 
 @{
-    var categories = await _categoryProvider.Categories();
+    var categories = await _categoryProvider.GetPublishedCategories();
     var catUrl = Url.Content("~/categories");
     var currentUserAuthor = await _authorProvider.FindByEmail(User.Identity.Name);
 }
