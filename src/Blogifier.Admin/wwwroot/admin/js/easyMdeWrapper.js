@@ -118,10 +118,12 @@ export function onPaste(easymde, inputFileContainer) {
   const inputFile = inputFileContainer.querySelector("input");
   easymde.codemirror.on("paste", function (self, event) {
     inputFile.files = event.clipboardData.files;
-    const e = new Event('change', { bubbles: true });
-    inputFile.dispatchEvent(e);
+    if(inputFile.files.length > 0) {
+      const e = new Event('change', { bubbles: true });
+      inputFile.dispatchEvent(e);
 
-    event.preventDefault();
+      event.preventDefault();
+    }
   });
 }
 

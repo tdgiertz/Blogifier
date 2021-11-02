@@ -1,5 +1,3 @@
-var easymde = {};
-
 window.commonJsFunctions = {
   setTitle: function (title) {
     document.title = title + " - Blogifier";
