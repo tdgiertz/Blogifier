@@ -37,12 +37,12 @@ namespace Blogifier.Files
             }
         }
 
-        public async Task<string> GetBasePath()
+        private async Task<string> GetBasePath()
         {
             return await _fileStoreConfiguration.GetBasePathAsync(GetAuthorIdFunc());
         }
 
-        public async Task<string> GetThumbnailBasePath()
+        private async Task<string> GetThumbnailBasePath()
         {
             return await _fileStoreConfiguration.GetThumbnailBasePathAsync(GetAuthorIdFunc());
         }
@@ -58,15 +58,15 @@ namespace Blogifier.Files
 
             if (request.ShouldGenerateThumbnailUrl)
             {
-                generateSignedUrl.ThumbnailFilePath = System.IO.Path.Combine(await GetBasePath(), request.Filename);
+                generateSignedUrl.ThumbnailFilePath = System.IO.Path.Combine(await GetThumbnailBasePath(), request.Filename);
             }
 
             var response = await _fileStoreProvider.GetSignedUrlAsync(generateSignedUrl);
 
             var fileDescriptor = response.ToFileDescriptor();
 
-            fileDescriptor.RelativePath = System.IO.Path.Combine(await GetBasePath(), request.Filename);
-            fileDescriptor.ThumbnailRelativePath = System.IO.Path.Combine(await GetThumbnailBasePath(), request.Filename);
+            fileDescriptor.RelativePath = objectPath;
+            fileDescriptor.ThumbnailRelativePath = generateSignedUrl.ThumbnailFilePath;
             fileDescriptor.DateCreated = DateTime.UtcNow;
             fileDescriptor.Id = Guid.NewGuid();
 
