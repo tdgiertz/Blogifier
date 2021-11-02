@@ -2,6 +2,7 @@ using Blogifier.Core.Providers;
 using Blogifier.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -18,14 +19,14 @@ namespace Blogifier.Controllers
 			_categoryProvider = categoryProvider;
 		}
 
-		[HttpGet("{postId:int}")]
-		public async Task<ICollection<Category>> GetPostCategories(int postId)
+		[HttpGet("{postId:Guid}")]
+		public async Task<ICollection<Category>> GetPostCategories(Guid postId)
 		{
 			return await _categoryProvider.GetPostCategories(postId);
 		}
 
-        [HttpGet("byId/{categoryId:int}")]
-        public async Task<Category> GetCategory(int categoryId)
+        [HttpGet("byId/{categoryId:Guid}")]
+        public async Task<Category> GetCategory(Guid categoryId)
         {
             return await _categoryProvider.GetCategory(categoryId);
         }
@@ -43,8 +44,8 @@ namespace Blogifier.Controllers
         }
 
         [Authorize]
-		[HttpPost("{postId:int}/{tag}")]
-		public async Task<ActionResult<bool>> AddPostCategory(int postId, string tag)
+		[HttpPost("{postId:Guid}/{tag}")]
+		public async Task<ActionResult<bool>> AddPostCategory(Guid postId, string tag)
 		{
 			return await _categoryProvider.AddPostCategory(postId, tag);
 		}
@@ -57,15 +58,15 @@ namespace Blogifier.Controllers
         }
 
         [Authorize]
-        [HttpPut("{postId:int}")]
-        public async Task<ActionResult<bool>> SavePostCategories(int postId, List<Category> categories)
+        [HttpPut("{postId:Guid}")]
+        public async Task<ActionResult<bool>> SavePostCategories(Guid postId, List<Category> categories)
         {
             return await _categoryProvider.SavePostCategories(postId, categories);
         }
 
         [Authorize]
-        [HttpDelete("{categoryId:int}")]
-        public async Task<ActionResult<bool>> RemoveCategory(int categoryId)
+        [HttpDelete("{categoryId:Guid}")]
+        public async Task<ActionResult<bool>> RemoveCategory(Guid categoryId)
         {
             return await _categoryProvider.RemoveCategory(categoryId);
         }

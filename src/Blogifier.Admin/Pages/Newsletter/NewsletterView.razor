@@ -65,13 +65,13 @@
         Newsletters = await _http.GetFromJsonAsync<List<Newsletter>>($"api/newsletter/newsletters");
     }
 
-    protected async Task RemoveNewsletter(int id)
+    protected async Task RemoveNewsletter(Guid id)
     {
         Toaster.Toast(await _http.DeleteAsync($"api/newsletter/remove/{id}"));
         await Load();
     }
 
-    protected async Task Resend(int postId)
+    protected async Task Resend(Guid postId)
     {
         bool success = await _http.GetFromJsonAsync<bool>($"api/newsletter/send/{postId}");
         if (success)

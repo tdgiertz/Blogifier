@@ -2,6 +2,7 @@ using Blogifier.Core.Providers;
 using Blogifier.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -31,8 +32,8 @@ namespace Blogifier.Controllers
 			return await _newsletterProvider.GetSubscribers();
 		}
 
-		[HttpDelete("unsubscribe/{id:int}")]
-		public async Task<ActionResult<bool>> RemoveSubscriber(int id)
+		[HttpDelete("unsubscribe/{id:Guid}")]
+		public async Task<ActionResult<bool>> RemoveSubscriber(Guid id)
 		{
 			return await _newsletterProvider.RemoveSubscriber(id);
 		}
@@ -45,15 +46,15 @@ namespace Blogifier.Controllers
 		}
 
 		[Authorize]
-		[HttpGet("send/{postId:int}")]
-		public async Task<bool> SendNewsletter(int postId)
+		[HttpGet("send/{postId:Guid}")]
+		public async Task<bool> SendNewsletter(Guid postId)
 		{
 			return await _newsletterProvider.SendNewsletter(postId);
 		}
 
 		[Authorize]
-		[HttpDelete("remove/{id:int}")]
-		public async Task<ActionResult<bool>> RemoveNewsletter(int id)
+		[HttpDelete("remove/{id:Guid}")]
+		public async Task<ActionResult<bool>> RemoveNewsletter(Guid id)
 		{
 			return await _newsletterProvider.RemoveNewsletter(id);
 		}

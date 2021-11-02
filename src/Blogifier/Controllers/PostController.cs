@@ -2,6 +2,7 @@
 using Blogifier.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -57,22 +58,22 @@ namespace Blogifier.Controllers
 		}
 
 		[Authorize]
-		[HttpPut("publish/{id:int}")]
-		public async Task<ActionResult<bool>> PublishPost(int id, [FromBody] bool publish)
+		[HttpPut("publish/{id:Guid}")]
+		public async Task<ActionResult<bool>> PublishPost(Guid id, [FromBody] bool publish)
 		{
 			return await _postProvider.Publish(id, publish);
 		}
 
 		[Authorize]
-		[HttpPut("featured/{id:int}")]
-		public async Task<ActionResult<bool>> FeaturedPost(int id, [FromBody] bool featured)
+		[HttpPut("featured/{id:Guid}")]
+		public async Task<ActionResult<bool>> FeaturedPost(Guid id, [FromBody] bool featured)
 		{
 			return await _postProvider.Featured(id, featured);
 		}
 
 		[Authorize]
-		[HttpDelete("{id:int}")]
-		public async Task<ActionResult<bool>> RemovePost(int id)
+		[HttpDelete("{id:Guid}")]
+		public async Task<ActionResult<bool>> RemovePost(Guid id)
 		{
 			return await _postProvider.Remove(id);
 		}

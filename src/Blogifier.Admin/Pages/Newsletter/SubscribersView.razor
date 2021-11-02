@@ -50,7 +50,7 @@
         Subscribers = await _http.GetFromJsonAsync<List<Subscriber>>($"api/newsletter/subscribers");
     }
 
-    protected async Task RemoveSubscription(int id)
+    protected async Task RemoveSubscription(Guid id)
     {
         Toaster.Toast(await _http.DeleteAsync($"api/newsletter/unsubscribe/{id}"));
         await Load();

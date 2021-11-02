@@ -16,7 +16,7 @@
         <div class="col">
             <article class="post-grid d-flex flex-column">
                 <figure class="post-grid-cover">
-                    <img class="post-grid-img" src="~/@post.Cover" alt="@post.Title">
+                    <img class="post-grid-img" src="@post.Cover" alt="@post.Title">
                 </figure>
                 @if(post.Categories != null)
                 {
@@ -27,9 +27,9 @@
                     }
                 </div>
                 }
-                <h2 class="post-grid-title">
+                <h4 class="post-grid-title">
                     <a class="post-grid-link" href="~/posts/@post.Slug">@post.Title</a>
-                </h2>
+                </h4>
                 <p class="post-grid-desc">@Html.Raw(post.Description)</p>
                 <div class="post-grid-meta d-flex">
                     <div class="post-grid-author">

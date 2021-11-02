@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+		<PackageReference Include="Magick.NET.Core" Version="8.3.3" />
+		<PackageReference Include="Magick.NET-Q16-AnyCPU" Version="8.3.3" />
+    <PackageReference Include="MimeMapping" Version="1.0.1.37" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+		<PackageReference Include="Serilog" Version="2.10.0" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Blogifier.Shared\Blogifier.Shared.csproj" />
+		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
+	</ItemGroup>
+
+</Project>

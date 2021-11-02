@@ -1,7 +1,14 @@
 using Blogifier.Core.Extensions;
+using Blogifier.Core.Providers;
+using Blogifier.Extensions;
+using Blogifier.Providers;
+using Blogifier.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,21 +21,23 @@ namespace Blogifier
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            Log.Logger = new LoggerConfiguration()
-                  .Enrich.FromLogContext()
-                  .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
-                  .CreateLogger();
-
-            Log.Warning("Application start");
         }
 
         public IConfiguration Configuration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var section = Configuration.GetSection("Blogifier");
             Log.Warning("Start configure services");
 
-            services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
+            services.AddDataProtection()
+                .PersistKeysToGoogleCloudStorage(
+                    Configuration["DataProtection:Bucket"],
+                    Configuration["DataProtection:Object"])
+                .ProtectKeysWithGoogleKms(
+                    Configuration["DataProtection:KmsKeyName"]);
+
+            services.AddLocalization(opts => { opts.ResourcesPath = ""; });
 
             services.AddAuthentication(options =>
             {
@@ -40,11 +49,13 @@ namespace Blogifier
                 builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
             }));
 
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddSingleton<ICurrentUserProvider, CurrentUserProvider>();
             services.AddBlogDatabase(Configuration);
+            services.AddFileStore(Configuration);
+            services.AddDataStore(Configuration);
+            services.ConfigureThumbnails(Configuration);
 
-            services.AddBlogProviders();
-
-            
             services.AddControllersWithViews();
             services.AddRazorPages();
 
@@ -60,8 +71,16 @@ namespace Blogifier
             }
             else
             {
+                app.Use((context, next) =>
+                {
+                    context.Request.Scheme = "https";
+                    return next();
+                });
+
                 app.UseExceptionHandler("/Error");
             }
+
+            app.UseSerilogRequestLogging();
 
             app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();

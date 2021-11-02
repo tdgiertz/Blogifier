@@ -1,0 +1,16 @@
+
+<div class="vw-75">
+    <FileListingComponent BrowserFiles="@BrowserFiles" OnLink="fileModel => OnLink(fileModel)"></FileListingComponent>
+</div>
+
+@code {
+    [CascadingParameter]
+    BlazoredModalInstance ModalInstance { get; set; }
+    [Parameter]
+    public IReadOnlyList<IBrowserFile> BrowserFiles { get; set; }
+
+    public void OnLink(FileModel fileModel)
+    {
+        ModalInstance.CloseAsync(ModalResult.Ok<FileModel>(fileModel));
+    }
+}

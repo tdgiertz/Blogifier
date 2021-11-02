@@ -23,9 +23,9 @@ namespace Blogifier.Shared
 
         public static string DummyEmail = "dummy@blog.com";
 
-        public static string DefaultAvatar = "img/avatar.png";
-        public static string DefaultCover = "img/cover.jpg";
-        public static string DefaultLogo = "img/logo-sm.png";
+        public static string DefaultAvatar = "/img/avatar.png";
+        public static string DefaultCover = "/img/cover.jpg";
+        public static string DefaultLogo = "/img/logo-sm.png";
 
         public static string AvatarDataImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 250 250' width='250' height='250'%3E%3Crect width='250' height='250' fill='%23622aff'%3E%3C/rect%3E%3Ctext x='50%' y='53%' dominant-baseline='middle' text-anchor='middle' font-family='Arial, sans-serif' font-size='128px' fill='%23ffffff'%3E{0}%3C/text%3E%3C/svg%3E";
         public static string ImagePlaceholder = "admin/img/img-placeholder.png";
@@ -49,6 +49,7 @@ namespace Blogifier.Shared
         public static string PostDraft = "D";
         public static string PostFeatured = "F";
         public static string PostPublished = "P";
+        public static string PostPopular = "U";
 
         public static string IdentityCookieName = ".AspNetCore.Identity.Application";
     }

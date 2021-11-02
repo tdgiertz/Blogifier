@@ -1,11 +1,10 @@
 @using Blogifier.Shared.Resources
-@using Blogifier.Shared
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<Resource> _localizer
 @inject ICategoryProvider _categoryProvider
 
 @{
-    var categories = await _categoryProvider.Categories();
+    var categories = await _categoryProvider.GetPublishedCategories();
     var catUrl = Url.Content("~/categories");
 }
 

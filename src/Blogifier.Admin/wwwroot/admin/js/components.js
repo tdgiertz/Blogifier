@@ -65,32 +65,22 @@ window.commonJsFunctions = {
       "trigger": "hover",
       fallbackPlacements: ['bottom']
     }
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl, options)
+    var autoCloseTooltipTriggerList = [].slice.call(document.querySelectorAll('.auto-close-tooltip[data-bs-toggle="tooltip"]'));
+    var tooltipList = autoCloseTooltipTriggerList.map(function (tooltipTriggerEl) {
+      let tooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+      if(tooltip) return tooltip;
+      tooltip = new bootstrap.Tooltip(tooltipTriggerEl, options);
+
+      tooltipTriggerEl.addEventListener('click', function(){
+        tooltip.hide();
+      });
     });
-  },
-  loadEditor: function (toolbar) {
-    autosize(document.querySelectorAll('.autosize'));
-    easymde = getEditor(toolbar);
-    easymde.codemirror.on("paste", function(self,event)
-    {
-      _editor = easymde;
-      fileManager.clipBoardUpload(event)
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      let tooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+      if(tooltip) return tooltip;
+      return new bootstrap.Tooltip(tooltipTriggerEl, options);
     });
-    window.onscroll = function () { stickyToolbar(toolbar) };
-    editorToolbarTooltip();
-  },
-  setEditorValue: function (txt) {
-    easymde.value(txt
-      .replace(/&#xA;/g, '\r\n')
-      .replace(/&#xD;/g, '')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"'));
-  },
-  getEditorValue: function () {
-    return easymde.value();
   },
   showModal: function (id) {
     document.getElementById(id).showModal();
@@ -117,5 +107,11 @@ window.commonJsFunctions = {
     }
     time();
     setInterval(time, 60 * 1000);
+  },
+  updateAvatar: function (src) {
+    let profilePicture = document.querySelectorAll('.profilePicture');
+    for (i = 0; i < profilePicture.length; i++) {
+      profilePicture[i].src = src;
+    }
   }
 };

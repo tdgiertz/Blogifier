@@ -13,7 +13,7 @@
 {
 <div class="section-content">
     <div class="list-toolbar">
-        <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
+        <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select-all"]">
             <input type="checkbox" @onchange="EventArgs => { CheckAll(EventArgs.Value); }" class="list-check-input form-check-input">
         </label>
         @*<a class="btn btn-blogifier me-3 -add" href="/admin/pages/editor">@_localizer["new-category"]</a>*@
@@ -52,7 +52,7 @@
         <ul class="list mb-5" aria-label="posts">
             <Virtualize Items="Categories" Context="category">
                 <li class="list-item">
-                    <label class="list-check form-check" data-bs-toggle="tooltip" title="@_localizer["select"]">
+                    <label class="form-check" data-bs-toggle="tooltip" title="@_localizer["select"]">
                         <input type="checkbox" @bind="category.Selected" class="list-check-input form-check-input">
                     </label>
                     <a class="list-title -link" href="" @onclick="async ()=> await ShowEdit(category.Id)" @onclick:preventDefault>
@@ -127,7 +127,7 @@
        Categories = await _http.GetFromJsonAsync<List<CategoryItem>>($"api/category");
    }
 
-   protected async Task ShowEdit(int categoryId)
+   protected async Task ShowEdit(Guid categoryId)
    {
        CurrentCategory = await _http.GetFromJsonAsync<Category>($"api/category/byId/{categoryId}");
        IsEdit = true;

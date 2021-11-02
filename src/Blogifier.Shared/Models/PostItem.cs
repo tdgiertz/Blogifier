@@ -6,7 +6,7 @@ namespace Blogifier.Shared
 {
     public class PostItem
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public PostType PostType { get; set; }
         [Required]
         public string Title { get; set; }

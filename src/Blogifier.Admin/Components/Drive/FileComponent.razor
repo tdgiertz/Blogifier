@@ -1,0 +1,194 @@
+@using Models
+@using Serivces
+@inject IStringLocalizer<Resource> _localizer
+@inject IJSRuntime _jsruntime
+
+@if(UploadFileModel != null)
+{
+    <div class="row justify-content-center">
+        <div class="mb-2 mb-md-0 col-12 col-md-3 col-xl-1 text-center">
+            @if(ShouldShowImage())
+            {
+                @if(UseObjectTag())
+                {
+                    <object data="@UploadFileModel.FileModel.ThumbnailUrl" type="image/svg+xml" class="img-fluid"></object>
+                }
+                else
+                {
+                    <img src="@UploadFileModel.FileModel.ThumbnailUrl" class="img-fluid">
+                }
+            }
+        </div>
+        <div class="mb-2 mb-md-0 col-12 col-md-7 col-xl-9">
+            <div class="d-flex flex-column-reverse flex-md-row justify-content-between">
+                @if(UploadFileModel.UploadState.IsUploadPending)
+                {
+                    <input type="text" class="form-control form-control-sm" @bind="UploadFileModel.FileModel.Filename">
+                }
+                else
+                {
+                    <h4 class="mb-1 text-center">@UploadFileModel.FileModel.Filename</h4>
+                    @if(!UploadFileModel.UploadState.IsUploading && !UploadFileModel.UploadState.IsUploadPending)
+                    {
+                        <label class="text-center">@UploadFileModel.FileModel.DateCreated.ToLocalTime().ToFriendlyDateTimeString()</label>
+                    }
+                }
+            </div>
+            <div class="d-flex justify-content-center justify-content-md-start">
+                @if(UploadFileModel.UploadState.IsEditing && !UploadFileModel.UploadState.IsUploading)
+                {
+                    <textarea class="form-control form-control-sm" @bind="UploadFileModel.FileModel.Description" rows="1" placeholder="@_localizer["type-here"]"></textarea>
+                }
+                else
+                {
+                    <label class="text-muted">@UploadFileModel.FileModel.Description</label>
+                }
+            </div>
+        </div>
+        <div class="col-9 col-md-2 align-self-center">
+            @if(UploadFileModel.UploadState.IsUploading)
+            {
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: @(UploadFileModel.UploadState.ProgressPercent)%;" aria-valuenow="@(UploadFileModel.UploadState.ProgressPercent)" aria-valuemin="0" aria-valuemax="100">@(UploadFileModel.UploadState.ProgressPercent)%</div>
+                </div>
+            }
+            else
+            {
+                <div class="w-100 btn-group">
+                    @if(UploadFileModel.UploadState.IsEditing)
+                    {
+                        <button class="btn btn-sm btn-blogifier auto-close-tooltip" data-bs-toggle="tooltip" title="Save" disabled="@IsBusy" @onclick="async () => await SaveAsync()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16">
+                                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z" fill="#000"/>
+                            </svg>
+                        </button>
+                        <button class="btn btn-sm btn-default auto-close-tooltip" data-bs-toggle="tooltip" title="Cancel" disabled="@IsBusy" @onclick="() => SetIsEditing(false)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M13.854 2.146a.5.5 0 0 1 0 .708l-11 11a.5.5 0 0 1-.708-.708l11-11a.5.5 0 0 1 .708 0Z" fill="#000"/>
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M2.146 2.146a.5.5 0 0 0 0 .708l11 11a.5.5 0 0 0 .708-.708l-11-11a.5.5 0 0 0-.708 0Z" fill="#000"/>
+                            </svg>
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-blogifier auto-close-tooltip" data-bs-toggle="tooltip" title="Edit" disabled="@IsBusy" @onclick="() => SetIsEditing(true)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z" />
+                            </svg>
+                        </button>
+                    }
+                    <button class="btn btn-sm btn-default auto-close-tooltip" data-bs-toggle="tooltip" title="Delete" disabled="@(!CanDelete())" @onclick="async () => await DeleteAsync()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                        </svg>
+                    </button>
+                    @if(CanLink())
+                    {
+                        <button  class="btn btn-sm btn-default auto-close-tooltip" data-bs-toggle="tooltip" title="Link" @onclick="async () => await OnLink.InvokeAsync(UploadFileModel.FileModel)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-link-45deg" viewBox="0 0 16 16">
+                                <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/>
+                                <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"/>
+                            </svg>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+    @if(UploadFileModel.FileModel.HasErrors)
+    {
+        <div class="error-panel text-white bg-danger mt-1">
+            @(UploadFileModel.FileModel.Message ?? "An error occurred")
+        </div>
+    }
+}
+
+@code {
+    [Inject]
+    protected IFileService FileService { get; set; }
+    [Inject]
+    protected IUploadFileService UploadFileService { get; set; }
+
+    [Parameter]
+    public UploadFileModel UploadFileModel { get; set; }
+    [Parameter]
+    public EventCallback<Guid> OnDelete { get; set; }
+    [Parameter]
+    public EventCallback<Guid> OnSave { get; set; }
+    [Parameter]
+    public EventCallback<FileModel> OnLink { get; set; }
+
+    private bool IsBusy;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await _jsruntime.InvokeVoidAsync("commonJsFunctions.setTooltip");
+    }
+
+    private async Task DeleteAsync()
+    {
+        if(UploadFileModel.UploadState.IsUploadPending)
+        {
+            await OnDelete.InvokeAsync(UploadFileModel.FileModel.Id);
+        }
+        else
+        {
+            await FileService.DeleteAsync(UploadFileModel.FileModel.Id, OnDelete, isBusy => SetIsBusy(isBusy));
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if(UploadFileModel.UploadState.IsUploadPending)
+        {
+            UploadFileModel.FileModel.HasErrors = false;
+            await UploadFileService.UploadAsync(UploadFileModel, () => StateHasChanged(), isEditing => SetIsEditing(isEditing));
+        }
+        else
+        {
+            await FileService.SaveAsync(UploadFileModel.FileModel, isBusy => SetIsBusy(isBusy), isEditing => SetIsEditing(isEditing));
+        }
+
+        await OnSave.InvokeAsync(UploadFileModel.FileModel.Id);
+    }
+
+    private void SetIsEditing(bool isEditing)
+    {
+        UploadFileModel.UploadState.IsEditing = isEditing;
+        StateHasChanged();
+    }
+
+    private void SetIsBusy(bool isBusy)
+    {
+        IsBusy = isBusy;
+        StateHasChanged();
+    }
+
+    private bool CanDelete()
+    {
+        return !IsBusy;
+    }
+
+    private bool CanLink()
+    {
+        return OnLink.HasDelegate && !UploadFileModel.UploadState.IsUploadPending;
+    }
+
+    private bool ShouldShowImage()
+    {
+        return !UploadFileModel.UploadState.IsUploadPending && IsThumbnailType();
+    }
+
+    private bool IsThumbnailType()
+    {
+        var contentType = UploadFileModel.FileModel.MimeType;
+        return !string.IsNullOrEmpty(contentType) && contentType.StartsWith("image", StringComparison.InvariantCultureIgnoreCase);
+    }
+
+    private bool UseObjectTag()
+    {
+        return UploadFileModel.FileModel.MimeType == "image/svg+xml";
+    }
+}
