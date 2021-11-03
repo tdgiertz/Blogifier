@@ -40,7 +40,6 @@ namespace Blogifier.Controllers
 
         public async Task<IActionResult> Index(int page = 1)
         {
-
             var model = await GetBlogPosts(pager: page);
 
             //If no blogs are setup redirect to first time registration
@@ -223,7 +222,6 @@ namespace Blogifier.Controllers
 
         public async Task<ListModel> GetBlogPosts(string term = "", int pager = 1, string category = "", string slug = "")
         {
-
             var model = new ListModel { };
 
             try

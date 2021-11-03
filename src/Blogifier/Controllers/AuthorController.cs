@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -17,10 +17,12 @@ namespace Blogifier.Controllers
     public class AuthorController : ControllerBase
     {
         private readonly IAuthorProvider _authorProvider;
+        private readonly IConfiguration _configuration;
 
-        public AuthorController(IAuthorProvider authorProvider)
+        public AuthorController(IAuthorProvider authorProvider, IConfiguration configuration)
         {
             _authorProvider = authorProvider;
+            _configuration = configuration;
         }
 
         [Authorize]
@@ -70,6 +72,7 @@ namespace Blogifier.Controllers
             return success ? Ok() : BadRequest();
         }
 
+        [Authorize(Policy = "RequireRegistrationAuth")]
         [HttpPost("register")]
         public async Task<ActionResult<bool>> Register(RegisterModel model)
         {

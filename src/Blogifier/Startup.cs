@@ -4,11 +4,11 @@ using Blogifier.Extensions;
 using Blogifier.Providers;
 using Blogifier.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -58,6 +58,15 @@ namespace Blogifier
 
             services.AddControllersWithViews();
             services.AddRazorPages();
+
+            services.AddAuthorization(option =>
+            {
+                option.AddPolicy("RequireRegistrationAuth", policy =>
+                {
+                    policy.AddRequirements(new RegistrationRequirement(Configuration));
+                });
+            });
+            services.AddSingleton<IAuthorizationHandler, RegistrationRequirementHandler>();
 
             Log.Warning("Done configure services");
         }
