@@ -17,10 +17,13 @@ namespace Blogifier.Admin.Pages.Account
             var uri = _navigationManager.ToAbsoluteUri(_navigationManager.Uri);
 
             if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var param))
-                returnUrl = param.First();
-
-			if(returnUrl.StartsWith("http"))
-				returnUrl = "admin/";
+            {
+                var path = new System.Uri(param.First()).PathAndQuery.TrimEnd('/');
+                if(!string.IsNullOrEmpty(path))
+                {
+                    returnUrl = path;
+                }
+            }
 
             var result = await Http.PostAsJsonAsync<LoginModel>("api/author/login", model);
 

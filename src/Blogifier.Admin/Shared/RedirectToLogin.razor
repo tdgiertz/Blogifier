@@ -18,7 +18,10 @@
            if (blog == null)
                _navigationManager.NavigateTo("admin/register/");
            else
-               _navigationManager.NavigateTo($"admin/login/?returnUrl={Uri.EscapeDataString(_navigationManager.Uri)}");
+           {
+                var returnUrl = Uri.EscapeDataString(new Uri(_navigationManager.Uri).PathAndQuery);
+               _navigationManager.NavigateTo($"admin/login/?returnUrl={returnUrl}");
+           }
        }
        catch (Exception ex)
        {

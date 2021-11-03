@@ -87,8 +87,12 @@ namespace Blogifier
                     var baseConfig = new ConfigurationBuilder()
                         .SetBasePath(Directory.GetCurrentDirectory())
                         .AddJsonFile("appsettings.json")
+                        .AddJsonFile("appsettings.Development.json")
                         .Build();
-                    config.AddGoogleSecretsManager(baseConfig["SecretVault:Resource"]);
+                    if (baseConfig.GetValue<string>("SecretVault:Provider") == "Google")
+                    {
+                        config.AddGoogleSecretsManager(baseConfig["SecretVault:Resource"]);
+                    }
                 })
                 .UseSerilog()
                 .ConfigureWebHostDefaults(webBuilder =>
