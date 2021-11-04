@@ -72,7 +72,7 @@
         }
         else if(fileModel.MimeType?.StartsWith("video", StringComparison.InvariantCultureIgnoreCase) ?? false)
         {
-            text = $"<video width=\"700\" height=\"350\" controls>{newline}\t\t<source src=\"{fileModel.Url}\" type=\"{fileModel.MimeType}\">{newline}\t\tYour browser does not support the video tag.{newline}</video>";
+            text = $"<div class=\"ratio ratio-16x9 my-4\"><video controls>{newline}\t\t<source src=\"{fileModel.Url}\" type=\"{fileModel.MimeType}\">{newline}\t\tYour browser does not support the video tag.{newline}</video></div>";
         }
         else if(fileModel.MimeType?.StartsWith("audio", StringComparison.InvariantCultureIgnoreCase) ?? false)
         {

@@ -105,7 +105,7 @@ export function insertYoutube(easymde) {
   let id = prompt("Please enter video ID", "");
 
   if (id !== null && id !== "") {
-    let tag = `<iframe width="700" height="400" src="https://www.youtube.com/embed/${id}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    let tag = `<div class=\"ratio ratio-16x9 my-4\"><iframe width="700" height="400" src="https://www.youtube.com/embed/${id}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
     replaceSelection(easymde, tag);
   }
 }
