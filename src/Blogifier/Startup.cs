@@ -28,14 +28,17 @@ namespace Blogifier
         public void ConfigureServices(IServiceCollection services)
         {
             var section = Configuration.GetSection("Blogifier");
-            Log.Warning("Start configure services");
+            Log.Information("Start configure services");
 
-            services.AddDataProtection()
-                .PersistKeysToGoogleCloudStorage(
-                    Configuration["DataProtection:Bucket"],
-                    Configuration["DataProtection:Object"])
-                .ProtectKeysWithGoogleKms(
-                    Configuration["DataProtection:KmsKeyName"]);
+            if(Configuration.GetSection("DataProtection").Exists())
+            {
+                services.AddDataProtection()
+                    .PersistKeysToGoogleCloudStorage(
+                        Configuration["DataProtection:Bucket"],
+                        Configuration["DataProtection:Object"])
+                    .ProtectKeysWithGoogleKms(
+                        Configuration["DataProtection:KmsKeyName"]);
+            }
 
             services.AddLocalization(opts => { opts.ResourcesPath = ""; });
 
@@ -68,7 +71,7 @@ namespace Blogifier
             });
             services.AddSingleton<IAuthorizationHandler, RegistrationRequirementHandler>();
 
-            Log.Warning("Done configure services");
+            Log.Information("Done configure services");
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

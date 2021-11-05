@@ -8,7 +8,6 @@ using Blogifier.Files.Backblaze.Extensions;
 using Blogifier.Files.FileSystem.Extensions;
 using Blogifier.Files.Google.Extensions;
 using Blogifier.Files.Models;
-using Blogifier.Files.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,12 +34,9 @@ namespace Blogifier.Extensions
         public static IServiceCollection AddFileStore(this IServiceCollection services, IConfiguration configuration)
         {
             var section = configuration.GetSection("FileStore");
-
             var provider = section.GetValue<string>("Provider");
 
-            var fileStoreConfig = GetFromConfiguration(section);
-
-            services.AddSingleton(fileStoreConfig);
+            var isFileSystem = false;
 
             if (provider.Equals("Google", System.StringComparison.InvariantCultureIgnoreCase))
             {
@@ -58,21 +54,21 @@ namespace Blogifier.Extensions
             {
                 services.UseBackblazeFileStore();
             }
-            else if (provider.Equals("FileSystem", System.StringComparison.InvariantCultureIgnoreCase))
-            {
-                services.UseFileSystemFileStore();
-            }
             else
             {
-                services.AddScoped<IFileStoreProvider, FileStoreProvider>();
+                services.UseFileSystemFileStore();
+                isFileSystem = true;
             }
 
+            var fileStoreConfig = GetFromConfiguration(section, isFileSystem);
+
+            services.AddSingleton(fileStoreConfig);
             services.AddScoped<IFileManager, FileManager>();
 
             return services;
         }
 
-        private static FileStoreConfiguration GetFromConfiguration(IConfigurationSection section)
+        private static FileStoreConfiguration GetFromConfiguration(IConfigurationSection section, bool isFileSystem)
         {
             var configuration = new FileStoreConfiguration
             {
@@ -86,6 +82,11 @@ namespace Blogifier.Extensions
                 PublicUrlTemplate = section["PublicUrlTemplate"],
                 AccountId = section["AccountId"]
             };
+
+            if(isFileSystem && string.IsNullOrEmpty(configuration.BasePathTemplate))
+            {
+                configuration.BasePathTemplate = "data";
+            }
 
             if(int.TryParse(section["UrlExpirationMinutes"], out var urlExpirationMinutes))
             {
