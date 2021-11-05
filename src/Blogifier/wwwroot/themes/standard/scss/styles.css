@@ -1011,16 +1011,6 @@ pre > code {
   color: var(--bf-color);
 }
 
-.post-list-link::before {
-  content: "";
-  display: block;
-  width: 20rem;
-  height: 100%;
-  top: 0;
-  left: 0;
-  position: absolute;
-}
-
 .post-list-desc {
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
