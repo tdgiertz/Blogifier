@@ -250,9 +250,8 @@ namespace Blogifier.Controllers
             }
             else
             {
+                ViewBag.SearchTerm = term;
                 model.PostListType = PostListType.Search;
-                model.Blog.Title = term;
-                model.Blog.Description = "";
                 model.Posts = await _postProvider.Search(model.Pager, term, default(Guid), "FP");
             }
 
