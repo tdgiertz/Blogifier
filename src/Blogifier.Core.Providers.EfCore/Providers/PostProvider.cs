@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -59,7 +60,7 @@ namespace Blogifier.Core.Providers.EfCore
 			var termList = term.ToLower().Split(' ').ToList();
             var categories = await _db.Categories.ToListAsync();
 
-			foreach (var p in GetPosts(include, author))
+			foreach (var p in await GetPosts(null, include, author))
 			{
 				var rank = 0;
 				var hits = 0;
@@ -68,7 +69,6 @@ namespace Blogifier.Core.Providers.EfCore
 				{
 					if (termItem.Length < 4 && rank > 0) continue;
 
-                    //var postCategories = categories.Where(c => c.)
 					if (p.Categories != null && p.Categories.Count > 0)
 					{
                         foreach (var category in p.Categories)
@@ -93,7 +93,7 @@ namespace Blogifier.Core.Providers.EfCore
 				}
 				if (rank > 0)
 				{
-					results.Add(new SearchResult { Rank = rank, Item = await PostToItem(p, sanitize) });
+					results.Add(new SearchResult { Rank = rank, Item = PostToItem(p, sanitize) });
 				}
 			}
 
@@ -142,43 +142,42 @@ namespace Blogifier.Core.Providers.EfCore
         {
             var model = new PostModel();
 
-            var all = _db.Posts
-               .AsNoTracking()
-               .OrderByDescending(p => p.IsFeatured)
-               .ThenByDescending(p => p.Published).ToList();
+            var post = await _db.Posts
+                .Include(p => p.Author)
+                .Include(p => p.Categories)
+                .AsNoTracking()
+                .Where(p => p.Slug == slug)
+                .FirstOrDefaultAsync();
 
-            await SetOlderNewerPosts(slug, model, all);
+            if(post == null)
+            {
+                return model;
+            }
 
-            var post = _db.Posts.Single(p => p.Slug == slug);
             post.PostViews++;
             await _db.SaveChangesAsync();
+
+            var previousPost = await _db.Posts
+                .Include(p => p.Author)
+                .Include(p => p.Categories)
+                .Where(p => p.Published > DateTime.MinValue && p.Published < post.Published)
+                .OrderByDescending(p => p.Published)
+                .FirstOrDefaultAsync();
+            var nextPost = await _db.Posts
+                .Include(p => p.Author)
+                .Include(p => p.Categories)
+                .Where(p => p.Published > DateTime.MinValue && p.Published > post.Published)
+                .OrderBy(p => p.Published)
+                .FirstOrDefaultAsync();
+
+            model.Post = PostToItem(post);
+            model.Older = PostToItem(previousPost);
+            model.Newer = PostToItem(nextPost);
 
             model.Related = await Search(new Pager(1), model.Post.Title, default(Guid), "PF", true);
             model.Related = model.Related.Where(r => r.Id != model.Post.Id).ToList();
 
-            return await Task.FromResult(model);
-        }
-
-        private async Task SetOlderNewerPosts(string slug, PostModel model, List<Post> all)
-        {
-            if (all != null && all.Count > 0)
-            {
-                for (int i = 0; i < all.Count; i++)
-                {
-                    if (all[i].Slug == slug)
-                    {
-                        model.Post = await PostToItem(all[i]);
-
-                        if (i > 0 && all[i - 1].Published > DateTime.MinValue)
-                            model.Newer = await PostToItem(all[i - 1]);
-
-                        if (i + 1 < all.Count && all[i + 1].Published > DateTime.MinValue)
-                            model.Older = await PostToItem(all[i + 1]);
-
-                        break;
-                    }
-                }
-            }
+            return model;
         }
 
         public async Task<Post> GetPostBySlug(string slug)
@@ -263,40 +262,15 @@ namespace Blogifier.Core.Providers.EfCore
 
 		public async Task<IEnumerable<PostItem>> GetList(PagingDescriptor pagingDescriptor, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
 		{
-			var posts = new List<Post>();
-			foreach (var p in GetPosts(include, author))
-			{
-				if (string.IsNullOrEmpty(category))
-				{
-					posts.Add(p);
-				}
-				else
-				{
-                    // should this just use ef core to load categories instead?
-                    if (p.Categories != null && p.Categories.Count > 0)
-                    {
-                        Category cat = _db.Categories.Single(c => c.Content.ToLower() == category.ToLower());
-                        if (cat == null)
-                            continue;
-
-                        foreach (var pc in p.Categories)
-                        {
-                            // if (pc.CategoryId == cat.Id)
-                            // {
-                            //     posts.Add(p);
-                            // }
-                        }
-                    }
-                }
-			}
-			pagingDescriptor.SetTotalCount(posts.Count);
+			var posts = await GetPosts(pagingDescriptor, include, author, category);
 
 			var items = new List<PostItem>();
-			foreach (var p in posts.Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).ToList())
+			foreach (var post in posts)
 			{
-				items.Add(await PostToItem(p, sanitize));
+				items.Add(PostToItem(post, sanitize));
 			}
-			return await Task.FromResult(items);
+
+			return items;
 		}
 
         private async Task<List<Post>> GetPostsCategoryContentAsync(string content)
@@ -309,18 +283,30 @@ namespace Blogifier.Core.Providers.EfCore
 			var posts = new List<Post>();
 
 			if (author != default(Guid))
-				posts = _db.Posts.AsNoTracking().Where(p => p.Published > DateTime.MinValue && p.AuthorId == author)
-					 .OrderByDescending(p => p.PostViews).ThenByDescending(p => p.Published).ToList();
+				posts = _db.Posts
+                    .Include(p => p.Author)
+                    .Include(p => p.Categories)
+                    .AsNoTracking()
+                    .Where(p => p.Published > DateTime.MinValue && p.AuthorId == author)
+				    .OrderByDescending(p => p.PostViews)
+                    .ThenByDescending(p => p.Published)
+                    .ToList();
 			else
-				posts = _db.Posts.AsNoTracking().Where(p => p.Published > DateTime.MinValue)
-					 .OrderByDescending(p => p.PostViews).ThenByDescending(p => p.Published).ToList();
+				posts = _db.Posts
+                    .Include(p => p.Author)
+                    .Include(p => p.Categories)
+                    .AsNoTracking()
+                    .Where(p => p.Published > DateTime.MinValue)
+					.OrderByDescending(p => p.PostViews)
+                    .ThenByDescending(p => p.Published)
+                    .ToList();
 
 			pagingDescriptor.SetTotalCount(posts.Count);
 
 			var items = new List<PostItem>();
 			foreach (var p in posts.Skip(pagingDescriptor.Skip).Take(pagingDescriptor.PageSize).ToList())
 			{
-				items.Add(await PostToItem(p, true));
+				items.Add(PostToItem(p, true));
 			}
 			return await Task.FromResult(items);
 		}
@@ -338,70 +324,102 @@ namespace Blogifier.Core.Providers.EfCore
 
 		#region Private methods
 
-		async Task<PostItem> PostToItem(Post p, bool sanitize = false)
+		private static PostItem PostToItem(Post post, bool sanitize = false)
 		{
-			var post = new PostItem
+            if(post == null)
+            {
+                return null;
+            }
+
+			var postItem = new PostItem
 			{
-				Id = p.Id,
-                PostType = p.PostType,
-				Slug = p.Slug,
-				Title = p.Title,
-				Description = p.Description,
-				Content = p.Content,
-				Categories = await _categoryProvider.GetPostCategories(p.Id),
-				Cover = p.Cover,
-				PostViews = p.PostViews,
-				Rating = p.Rating,
-				Published = p.Published,
-				Featured = p.IsFeatured,
-				Author = _db.Authors.Single(a => a.Id == p.AuthorId),
+				Id = post.Id,
+                PostType = post.PostType,
+				Slug = post.Slug,
+				Title = post.Title,
+				Description = post.Description,
+				Content = post.Content,
+				Categories = post.Categories,
+				Cover = post.Cover,
+				PostViews = post.PostViews,
+				Rating = post.Rating,
+				Published = post.Published,
+				Featured = post.IsFeatured,
+				Author = post.Author,
 				SocialFields = new List<SocialField>()
 			};
 
-			if (post.Author != null)
+			if (postItem.Author != null)
 			{
-				if(string.IsNullOrEmpty(post.Author.Avatar))
-                    string.Format(Constants.AvatarDataImage, post.Author.DisplayName.Substring(0, 1).ToUpper());
+				if(string.IsNullOrEmpty(postItem.Author.Avatar))
+                    string.Format(Constants.AvatarDataImage, postItem.Author.DisplayName.Substring(0, 1).ToUpper());
 
-                post.Author.Email = sanitize ? "donotreply@us.com" : post.Author.Email;
+                postItem.Author.Email = sanitize ? "donotreply@us.com" : postItem.Author.Email;
 			}
-			return await Task.FromResult(post);
+
+			return postItem;
 		}
 
-        List<Post> GetPosts(string include, Guid author)
+        private async Task<List<Post>> GetPosts(PagingDescriptor pagingDescriptor, string include, Guid author, string category = null)
 		{
-			var items = new List<Post>();
-			var pubfeatured = new List<Post>();
+            IQueryable<Post> query = _db.Posts.Include(p => p.Categories).Include(p => p.Author);
 
-			if (include.ToUpper().Contains(Constants.PostDraft) || string.IsNullOrEmpty(include))
+            var expression = PredicateBuilder.True<Post>();
+
+            if(!string.IsNullOrEmpty(category))
+            {
+                expression = expression.And(p => p.Categories.Any(c => c.Content == category));
+            }
+
+            Expression<Func<Post, bool>> innerExpression = null;
+
+            if (include.ToUpper().Contains(Constants.PostDraft) || string.IsNullOrEmpty(include))
 			{
-				var drafts = author != default(Guid) ?
-					 _db.Posts.Include(p => p.Categories).Where(p => p.Published == DateTime.MinValue && p.AuthorId == author && p.PostType == PostType.Post).ToList() :
-					 _db.Posts.Include(p => p.Categories).Where(p => p.Published == DateTime.MinValue && p.PostType == PostType.Post).ToList();
-				items = items.Concat(drafts).ToList();
+				innerExpression = author != default(Guid)
+                    ? OrExpression(innerExpression, p => p.Published == DateTime.MinValue && p.AuthorId == author && p.PostType == PostType.Post)
+                    : OrExpression(innerExpression, p => p.Published == DateTime.MinValue && p.PostType == PostType.Post);
 			}
 
 			if (include.ToUpper().Contains(Constants.PostFeatured) || string.IsNullOrEmpty(include))
 			{
-				var featured = author != default(Guid) ?
-					 _db.Posts.Include(p => p.Categories).Where(p => p.Published > DateTime.MinValue && p.IsFeatured && p.AuthorId == author && p.PostType == PostType.Post).OrderByDescending(p => p.Published).ToList() :
-					 _db.Posts.Include(p => p.Categories).Where(p => p.Published > DateTime.MinValue && p.IsFeatured && p.PostType == PostType.Post).OrderByDescending(p => p.Published).ToList();
-				pubfeatured = pubfeatured.Concat(featured).ToList();
+				innerExpression = author != default(Guid)
+                    ? OrExpression(innerExpression, p => p.Published > DateTime.MinValue && p.IsFeatured && p.AuthorId == author && p.PostType == PostType.Post)
+                    : OrExpression(innerExpression, p => p.Published > DateTime.MinValue && p.IsFeatured && p.PostType == PostType.Post);
 			}
 
 			if (include.ToUpper().Contains(Constants.PostPublished) || string.IsNullOrEmpty(include))
 			{
-				var published = author != default(Guid) ?
-					 _db.Posts.Include(p => p.Categories).Where(p => p.Published > DateTime.MinValue && !p.IsFeatured && p.AuthorId == author && p.PostType == PostType.Post).OrderByDescending(p => p.Published).ToList() :
-					 _db.Posts.Include(p => p.Categories).Where(p => p.Published > DateTime.MinValue && !p.IsFeatured && p.PostType == PostType.Post).OrderByDescending(p => p.Published).ToList();
-				pubfeatured = pubfeatured.Concat(published).ToList();
+				innerExpression = author != default(Guid)
+                    ? OrExpression(innerExpression, p => p.Published > DateTime.MinValue && !p.IsFeatured && p.AuthorId == author && p.PostType == PostType.Post)
+                    : OrExpression(innerExpression, p => p.Published > DateTime.MinValue && !p.IsFeatured && p.PostType == PostType.Post);
 			}
 
-			pubfeatured = pubfeatured.OrderByDescending(p => p.Published).ToList();
-			items = items.Concat(pubfeatured).ToList();
+            if(innerExpression != null)
+            {
+                expression = expression.And(innerExpression);
+            }
 
-			return items;
+            query = query.Where(expression).OrderByDescending(p => p.Published);
+
+            if(pagingDescriptor != null)
+            {
+                return await PaginatedList<Post>.CreateAsync(query, pagingDescriptor);
+            }
+            else
+            {
+                return await query.ToListAsync();
+            }
 		}
+
+        private static Expression<Func<Post, bool>> OrExpression(Expression<Func<Post, bool>> expression, Expression<Func<Post, bool>> orExpression)
+        {
+            if(expression == null)
+            {
+                return PredicateBuilder.Create<Post>(orExpression);
+            }
+
+            return expression.Or(orExpression);
+        }
 
         bool IsDemo()
         {

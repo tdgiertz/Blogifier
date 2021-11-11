@@ -2,13 +2,8 @@
 {
     public class Pager : PagingDescriptor
     {
-        public Pager(int currentPage, int pageSize = 0) : base(currentPage, pageSize)
+        public Pager(int currentPage, int pageSize = 10) : base(currentPage, pageSize)
         {
-            if (PageSize == 0)
-            {
-                SetPageSize(10);
-            }
-
             Newer = CurrentPage - 1;
             ShowNewer = CurrentPage > 1 ? true : false;
 

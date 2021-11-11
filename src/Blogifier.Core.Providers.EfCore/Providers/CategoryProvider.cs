@@ -104,7 +104,7 @@ namespace Blogifier.Core.Providers.EfCore
                 .Include(p => p.Categories)
                 .FirstOrDefaultAsync(p => p.Id == postId);
 
-            return post?.Categories;
+            return post?.Categories ?? new List<Category>();
         }
 
         public async Task<bool> SaveCategory(Category category)
@@ -123,7 +123,6 @@ namespace Blogifier.Core.Providers.EfCore
         public async Task<Category> SaveCategory(string tag)
         {
             var category = await _db.Categories
-                .AsNoTracking()
                 .Where(c => c.Content == tag)
                 .FirstOrDefaultAsync();
 
@@ -132,6 +131,7 @@ namespace Blogifier.Core.Providers.EfCore
 
             category = new Category()
             {
+                Id = Guid.NewGuid(),
                 Content = tag,
                 DateCreated = DateTime.UtcNow
             };
@@ -162,11 +162,41 @@ namespace Blogifier.Core.Providers.EfCore
 
         public async Task<bool> SavePostCategories(Guid postId, List<Category> categories)
         {
-            var post = await _db.Posts.AsNoTracking()
+            var post = await _db.Posts
                 .Include(p => p.Categories)
                 .FirstOrDefaultAsync(p => p.Id == postId);
 
-            post.Categories = categories;
+            var existingCategories = (await _db.Categories
+                .Where(c => categories.Select(cat => cat.Content).Any(content => content == c.Content))
+                .ToListAsync()).ToDictionary(k => k.Content, v => v);
+
+            foreach(var category in categories)
+            {
+                if(post.Categories.Any(c => c.Content == category.Content)) continue;
+                if(existingCategories.TryGetValue(category.Content, out var existingCategory))
+                {
+                    post.Categories.Add(existingCategory);
+                }
+                else
+                {
+                    category.DateCreated = DateTime.UtcNow;
+                    post.Categories.Add(category);
+                }
+            }
+
+            var toRemove = new List<Category>();
+            foreach(var category in post.Categories)
+            {
+                if(!categories.Any(c => c.Content == category.Content))
+                {
+                    toRemove.Add(category);
+                }
+            }
+
+            foreach(var category in toRemove)
+            {
+                post.Categories.Remove(category);
+            }
 
             return await _db.SaveChangesAsync() > 0;
         }
@@ -174,7 +204,6 @@ namespace Blogifier.Core.Providers.EfCore
         public async Task<bool> RemoveCategory(Guid categoryId)
         {
             var category = await _db.Categories
-                .AsNoTracking()
                 .Include(c => c.Posts)
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
 

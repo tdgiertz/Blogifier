@@ -24,8 +24,4 @@
 		<ProjectReference Include="..\Blogifier.Core.Providers\Blogifier.Core.Providers.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="Data\Migrations\" />
-	</ItemGroup>
-
 </Project>

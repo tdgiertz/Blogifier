@@ -37,6 +37,7 @@ namespace Blogifier.Core.Providers.MongoDb
             var existing = await _subscriberCollection.Find(s => s.Email == subscriber.Email).FirstOrDefaultAsync();
             if (existing == null)
             {
+                subscriber.Id = Guid.NewGuid();
                 subscriber.DateCreated = DateTime.UtcNow;
                 await _subscriberCollection.InsertOneAsync(subscriber);
             }

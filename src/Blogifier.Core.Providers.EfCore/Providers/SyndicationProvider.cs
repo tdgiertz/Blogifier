@@ -128,6 +128,7 @@ namespace Blogifier.Core.Providers.EfCore
                 {
                     post.Categories.Add(new Category
                     {
+                        Id = Guid.NewGuid(),
                         Content = category.Name,
                         DateCreated = DateTime.UtcNow,
                         DateUpdated = DateTime.UtcNow

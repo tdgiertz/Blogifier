@@ -31,6 +31,7 @@ namespace Blogifier.Core.Providers.EfCore
 			var existing = await _db.Subscribers.AsNoTracking().Where(s => s.Email == subscriber.Email).FirstOrDefaultAsync();
 			if (existing == null)
 			{
+                subscriber.Id = Guid.NewGuid();
 				subscriber.DateCreated = DateTime.UtcNow;
 				_db.Subscribers.Add(subscriber);
 				return await _db.SaveChangesAsync() > 0;
@@ -71,6 +72,7 @@ namespace Blogifier.Core.Providers.EfCore
 			{
 				var newsletter = new Newsletter()
 				{
+                    Id = Guid.NewGuid(),
 					PostId = postId,
 					DateCreated = DateTime.UtcNow,
 					Success = success,
@@ -119,7 +121,7 @@ namespace Blogifier.Core.Providers.EfCore
 		public async Task<MailSetting> GetMailSettings()
 		{
 			var settings = await _db.MailSettings.AsNoTracking().FirstOrDefaultAsync();
-			return settings == null ? new MailSetting() : settings;
+            return settings == null ? new MailSetting { Id = Guid.NewGuid() } : settings;
 		}
 
 		public async Task<bool> SaveMailSettings(MailSetting mail)
@@ -129,6 +131,7 @@ namespace Blogifier.Core.Providers.EfCore
 			{
 				var newMail = new MailSetting()
 				{
+                    Id = Guid.NewGuid(),
 					Host = mail.Host,
 					Port = mail.Port,
 					UserEmail = mail.UserEmail,

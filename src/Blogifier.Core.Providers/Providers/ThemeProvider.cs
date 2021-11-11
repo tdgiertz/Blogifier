@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Blogifier.Core.Providers.EfCore
+namespace Blogifier.Core.Providers
 {
-	public class ThemeProvider : IThemeProvider
+    public class ThemeProvider : IThemeProvider
 	{
 		public async Task<Dictionary<string, string>> GetSettings(string theme)
 		{

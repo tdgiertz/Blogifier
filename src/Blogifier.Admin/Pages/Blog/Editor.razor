@@ -176,6 +176,7 @@
 
         if (Post.Id == default(Guid))
         {
+            Post.Id = Guid.NewGuid();
             Post.Slug = await _http.GetStringAsync($"api/post/getslug/{Post.Title}");
             HttpResponseMessage result = await _http.PostAsJsonAsync<Post>($"api/post/add", Post);
 
@@ -203,10 +204,7 @@
         {
             Toaster.Toast(await _http.PutAsJsonAsync<Post>($"api/post/update", Post));
 
-            if (Categories?.PostCategories?.Any() ?? false)
-            {
-                await _http.PutAsJsonAsync<List<Category>>($"api/category/{Post.Id}", Categories.PostCategories);
-            }
+            await _http.PutAsJsonAsync<List<Category>>($"api/category/{Post.Id}", Categories.PostCategories);
 
             if (postAction == PostAction.Publish)
             {
@@ -244,7 +242,6 @@
     protected async Task ResetCover()
     {
         Post.Cover = Constants.DefaultCover;
-        Console.WriteLine($"Post.Cover: {Post.Cover}");
         StateHasChanged();
         await Save();
     }

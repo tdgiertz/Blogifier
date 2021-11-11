@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Blogifier.Shared
 {
@@ -20,6 +21,7 @@ namespace Blogifier.Shared
         public DateTime DateCreated { get; set; }
         public DateTime DateUpdated { get; set; }
 
+        [JsonIgnore]
         public List<Post> Posts { get; set; }
     }
 }

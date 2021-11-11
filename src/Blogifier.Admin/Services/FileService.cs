@@ -67,9 +67,8 @@ namespace Blogifier.Admin.Serivces
                     setIsEditing?.Invoke(false);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine(ex);
                 _toaster.Error(_localizer["generic-error"]);
             }
 
@@ -89,7 +88,6 @@ namespace Blogifier.Admin.Serivces
             }
             else
             {
-                Console.WriteLine("Error happened.");
                 _toaster.Error(_localizer["generic-error"]);
             }
 

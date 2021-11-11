@@ -17,12 +17,10 @@ namespace Blogifier.Controllers
     public class AuthorController : ControllerBase
     {
         private readonly IAuthorProvider _authorProvider;
-        private readonly IConfiguration _configuration;
 
-        public AuthorController(IAuthorProvider authorProvider, IConfiguration configuration)
+        public AuthorController(IAuthorProvider authorProvider)
         {
             _authorProvider = authorProvider;
-            _configuration = configuration;
         }
 
         [Authorize]

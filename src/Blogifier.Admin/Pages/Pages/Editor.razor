@@ -151,6 +151,7 @@
 
         if (Post.Id == default(Guid))
         {
+            Post.Id = Guid.NewGuid();
             Post.Slug = await _http.GetStringAsync($"api/post/getslug/{Post.Title}");
             Toaster.Toast(await _http.PostAsJsonAsync<Post>($"api/post/add", Post));
 
@@ -215,7 +216,6 @@
     {
         return new Post
         {
-            Id = default(Guid),
             Title = "",
             Description = "",
             Content = "",

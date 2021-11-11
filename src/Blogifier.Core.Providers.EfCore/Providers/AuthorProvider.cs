@@ -74,6 +74,7 @@ namespace Blogifier.Core.Providers.EfCore
                 isAdmin = true; // first blog record - set user as admin
                 blog = new Blog
                 {
+                    Id = Guid.NewGuid(),
                     Title = "Blog Title",
                     Description = "Short Blog Description",
                     Theme = "Standard",
@@ -99,6 +100,7 @@ namespace Blogifier.Core.Providers.EfCore
 
             author = new Author
             {
+                Id = Guid.NewGuid(),
                 DisplayName = model.Name,
                 Email = model.Email,
                 Password = model.Password.Hash(_salt),
