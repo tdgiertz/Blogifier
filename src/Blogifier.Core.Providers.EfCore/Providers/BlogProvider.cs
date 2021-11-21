@@ -33,8 +33,7 @@ namespace Blogifier.Core.Providers.EfCore
 				Cover = string.IsNullOrEmpty(blog.Cover) ? blog.Cover : Constants.DefaultCover,
 				Logo = string.IsNullOrEmpty(blog.Logo) ? blog.Logo : Constants.DefaultLogo,
                 HeaderScript = blog.HeaderScript,
-                FooterScript = blog.FooterScript,
-				values = await GetValues(blog.Theme)
+                FooterScript = blog.FooterScript
 			};
 		}
 
