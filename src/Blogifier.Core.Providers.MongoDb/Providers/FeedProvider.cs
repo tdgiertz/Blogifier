@@ -19,7 +19,7 @@ namespace Blogifier.Core.Providers.MongoDb
         public async Task<IEnumerable<AtomEntry>> GetEntries(string type, string host)
         {
             var items = new List<AtomEntry>();
-            var posts = await _postProvider.GetList(new Pager(1), default(Guid), "", "P");
+            var posts = await _postProvider.GetPublishedListAsync(new InfinitePagingDescriptor { PageSize = 10 });
 
             foreach (var post in posts)
             {

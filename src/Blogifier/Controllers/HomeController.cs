@@ -38,9 +38,9 @@ namespace Blogifier.Controllers
             _compositeViewEngine = compositeViewEngine;
         }
 
-        public async Task<IActionResult> Index(int page = 1)
+        public async Task<IActionResult> Index()
         {
-            var model = await GetBlogPosts(pager: page);
+            var model = await GetBlogPosts();
 
             //If no blogs are setup redirect to first time registration
             if (model == null)
@@ -48,7 +48,25 @@ namespace Blogifier.Controllers
                 return Redirect("~/admin/register");
             }
 
+            if(model.PagingDescriptor != null)
+            {
+                model.PagingDescriptor.PagingUrl = "/partial/" + model.PagingDescriptor.LastDateTime?.ToString("o");
+            }
+
             return View($"~/Views/Themes/{model.Blog.Theme}/Index.cshtml", model);
+        }
+
+        [HttpGet("/partial/{publishedDate:DateTime}")]
+        public async Task<IActionResult> IndexPartial(DateTime? publishedDate)
+        {
+            var model = await GetBlogPosts(publishedDate: publishedDate);
+
+            if(model?.PagingDescriptor != null)
+            {
+                model.PagingDescriptor.PagingUrl = "/partial/" + model.PagingDescriptor.LastDateTime?.ToString("o");
+            }
+
+            return PartialView($"~/Views/Themes/{model.Blog.Theme}/post/post-grid-items.cshtml", model);
         }
 
         [HttpGet("/{slug}")]
@@ -68,12 +86,19 @@ namespace Blogifier.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Search(string term, int page = 1)
+        public async Task<IActionResult> Search(string term)
         {
 
             if (!string.IsNullOrEmpty(term))
             {
-                var model = await GetBlogPosts(term, page);
+                var model = await GetBlogPosts(term);
+
+                if(model.PagingDescriptor != null)
+                {
+                    model.PagingDescriptor.LastDateTime = model.Posts.LastOrDefault()?.Published;
+                    model.PagingDescriptor.PagingUrl = "/search/" + model.PagingDescriptor.LastDateTime?.ToString("o") + "/" + term;
+                }
+
                 string viewPath = $"~/Views/Themes/{model.Blog.Theme}/Search.cshtml";
                 if (IsViewExists(viewPath))
                     return View(viewPath, model);
@@ -86,11 +111,31 @@ namespace Blogifier.Controllers
             }
         }
 
-        [HttpGet("categories/{category}")]
-        public async Task<IActionResult> Categories(string category, int page = 1)
+        [HttpGet("/search/{publishedDate:DateTime}/{term}")]
+        public async Task<IActionResult> SearchPartial(DateTime? publishedDate, string term)
         {
-            var model = await GetBlogPosts("", page, category);
+            var model = await GetBlogPosts(publishedDate: publishedDate, term: term);
+
+            if(model?.PagingDescriptor != null)
+            {
+                model.PagingDescriptor.LastDateTime = model.Posts.LastOrDefault()?.Published;
+                model.PagingDescriptor.PagingUrl = "/search/" + model.PagingDescriptor.LastDateTime?.ToString("o") + "/" + term;
+            }
+
+            return PartialView($"~/Views/Themes/{model.Blog.Theme}/post/post-list-items.cshtml", model);
+        }
+
+        [HttpGet("categories/{category}")]
+        public async Task<IActionResult> Categories(string category)
+        {
+            var model = await GetBlogPosts("", category);
             string viewPath = $"~/Views/Themes/{model.Blog.Theme}/Category.cshtml";
+
+            if(model?.PagingDescriptor != null)
+            {
+                model.PagingDescriptor.LastDateTime = model.Posts.LastOrDefault()?.Published;
+                model.PagingDescriptor.PagingUrl = "/categories/" + model.PagingDescriptor.LastDateTime?.ToString("o") + "/" + category;
+            }
 
             ViewBag.Category = category;
 
@@ -98,6 +143,20 @@ namespace Blogifier.Controllers
                 return View(viewPath, model);
 
             return View($"~/Views/Themes/{model.Blog.Theme}/Index.cshtml", model);
+        }
+
+        [HttpGet("/categories/{publishedDate:DateTime}/{category}")]
+        public async Task<IActionResult> CategoriesPartial(DateTime? publishedDate, string category)
+        {
+            var model = await GetBlogPosts(publishedDate: publishedDate, category: category);
+
+            if(model?.PagingDescriptor != null)
+            {
+                model.PagingDescriptor.LastDateTime = model.Posts.LastOrDefault()?.Published;
+                model.PagingDescriptor.PagingUrl = "/categories/" + model.PagingDescriptor.LastDateTime?.ToString("o") + "/" + category;
+            }
+
+            return PartialView($"~/Views/Themes/{model.Blog.Theme}/post/post-list-items.cshtml", model);
         }
 
         [HttpGet("posts/{slug}")]
@@ -220,43 +279,48 @@ namespace Blogifier.Controllers
             }
         }
 
-        public async Task<ListModel> GetBlogPosts(string term = "", int pager = 1, string category = "", string slug = "")
+        public async Task<ListModel> GetBlogPosts(string term = "", string category = "", string slug = "", DateTime? publishedDate = null)
         {
             var model = new ListModel { };
 
             try
             {
-                model.Blog = await _blogProvider.GetBlogItem();
+                model.Blog =await  _blogProvider.GetBlogItem();
             }
             catch
             {
                 return null;
             }
 
-            model.Pager = new Pager(pager, model.Blog.ItemsPerPage);
+            model.PagingDescriptor = new InfinitePagingDescriptor { PageSize = 9, LastDateTime = publishedDate };
 
             if (!string.IsNullOrEmpty(category))
             {
                 model.PostListType = PostListType.Category;
-                model.Posts = await _postProvider.GetList(model.Pager, default(Guid), category, "PF");
+                model.Posts = await _postProvider.GetPublishedListAsync(model.PagingDescriptor, category);
             }
             else if (string.IsNullOrEmpty(term))
             {
                 model.PostListType = PostListType.Blog;
                 if (model.Blog.IncludeFeatured)
-                    model.Posts = await _postProvider.GetList(model.Pager, default(Guid), "", "FP");
+                {
+                    model.Posts = await _postProvider.GetPublishedListAsync(model.PagingDescriptor);
+                    model.FeaturedPosts = await _postProvider.GetFeaturedListAsync(new InfinitePagingDescriptor { PageSize = 3 });
+                }
                 else
-                    model.Posts = await _postProvider.GetList(model.Pager, default(Guid), "", "P");
+                {
+                    model.Posts = await _postProvider.GetPublishedListAsync(model.PagingDescriptor);
+                }
             }
             else
             {
                 ViewBag.SearchTerm = term;
                 model.PostListType = PostListType.Search;
-                model.Posts = await _postProvider.Search(model.Pager, term, default(Guid), "FP");
+                model.PagingDescriptor.SearchTerm = term;
+                model.Posts = await _postProvider.GetPublishedListAsync(model.PagingDescriptor);
             }
 
-            if (model.Pager.ShowOlder) model.Pager.LinkToOlder = $"?page={model.Pager.Older}";
-            if (model.Pager.ShowNewer) model.Pager.LinkToNewer = $"?page={model.Pager.Newer}";
+            model.PagingDescriptor.LastDateTime = model.Posts.LastOrDefault()?.Published;
 
             return model;
         }

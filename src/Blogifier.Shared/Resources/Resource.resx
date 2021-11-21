@@ -765,4 +765,7 @@
     <data name="welcome-blogifier" xml:space="preserve">
         <value>Welcome to the Blogifier</value>
     </data>
+    <data name="load-more-posts" xml:space="preserve">
+        <value>Load more posts</value>
+    </data>
 </root>

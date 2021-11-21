@@ -174,7 +174,7 @@ namespace Blogifier.Core.Providers.EfCore
             model.Older = PostToItem(previousPost);
             model.Newer = PostToItem(nextPost);
 
-            model.Related = await Search(new Pager(1), model.Post.Title, default(Guid), "PF", true);
+            model.Related = await Search(new PagingDescriptor(1), model.Post.Title, default(Guid), "PF", true);
             model.Related = model.Related.Where(r => r.Id != model.Post.Id).ToList();
 
             return model;
@@ -260,6 +260,110 @@ namespace Blogifier.Core.Providers.EfCore
 			return await _db.SaveChangesAsync() > 0;
 		}
 
+        public async Task<IEnumerable<PostItem>> GetPublishedListAsync(InfinitePagingDescriptor pagingDescriptor, string category = null)
+        {
+            var searchTerms = pagingDescriptor.SearchTerm?.ToLower().Split(' ').ToList();
+            Expression<Func<Post, bool>> expression = GetSearchTermsFilter(searchTerms);
+
+            if(pagingDescriptor.LastDateTime.HasValue)
+            {
+                expression = AndExpression(expression, p => p.Published < pagingDescriptor.LastDateTime);
+            }
+            else
+            {
+                expression = AndExpression(expression, p => p.Published > DateTime.MinValue);
+            }
+
+            if(!string.IsNullOrEmpty(category))
+            {
+                expression = AndExpression(expression, p => p.Categories.Any(c => c.Content.ToLower() == category.ToLower()));
+            }
+
+            return await GetListByExpressionAsync(pagingDescriptor, expression);
+        }
+
+        public static Expression<Func<Post, bool>> AndExpression(Expression<Func<Post, bool>> left, Expression<Func<Post, bool>> right)
+        {
+            if(left == null)
+            {
+                return right;
+            }
+            if(right == null)
+            {
+                return left;
+            }
+
+            return PredicateBuilder.And(left, right);
+        }
+
+        private Expression<Func<Post, bool>> GetSearchTermsFilter(IEnumerable<string> searchTerms)
+        {
+            if (searchTerms == null || !searchTerms.Any()) return null;
+
+            Console.WriteLine($"SearchTerms: {string.Join(",", searchTerms)}");
+
+            Expression<Func<Post, bool>> expression = null;
+
+            foreach (var searchTerm in searchTerms)
+            {
+                var lowerCaseTerm = searchTerm.ToLower();
+                var filter1 = PredicateBuilder.Create<Post>(p => p.Content.ToLower().Contains(lowerCaseTerm));
+                var filter2 = PredicateBuilder.Create<Post>(p => p.Title.ToLower().Contains(lowerCaseTerm));
+                var filter3 = PredicateBuilder.Create<Post>(p => p.Description.ToLower().Contains(lowerCaseTerm));
+
+                var filters = PredicateBuilder.Or(filter1, PredicateBuilder.Or(filter2, filter3));
+
+                expression = expression == null
+                    ? filters
+                    : PredicateBuilder.Or(expression, filters);
+            }
+
+            return expression;
+        }
+
+        public async Task<IEnumerable<PostItem>> GetFeaturedListAsync(InfinitePagingDescriptor pagingDescriptor)
+        {
+            Expression<Func<Post, bool>> expression = pagingDescriptor.LastDateTime != DateTime.MinValue
+                ? p => p.IsFeatured && p.Published < pagingDescriptor.LastDateTime
+                : p => p.IsFeatured;
+
+            return await GetListByExpressionAsync(pagingDescriptor, expression);
+        }
+
+        private async Task<IEnumerable<PostItem>> GetListByExpressionAsync(InfinitePagingDescriptor pagingDescriptor, Expression<Func<Post, bool>> expression)
+        {
+            IEnumerable<Post> posts = await _db.Posts
+                .Include(p => p.Categories)
+                .Where(expression)
+                .OrderByDescending(p => p.Published)
+                .Take(pagingDescriptor.PageSize + 1)
+                .ToListAsync();
+
+            var setAuthorTask = SetPostAuthorsAsync(posts);
+
+            pagingDescriptor.HasMorePages = posts.Count() > pagingDescriptor.PageSize;
+            posts = posts.Take(pagingDescriptor.PageSize);
+
+            await setAuthorTask;
+
+            return PostToPostItems(posts);
+        }
+
+        private async Task SetPostAuthorsAsync(IEnumerable<Post> posts)
+        {
+            var authorIds = posts.Select(p => p.AuthorId).Distinct();
+
+            var authorLookup = (await _db.Authors.Where(a => authorIds.Contains(a.Id)).ToListAsync()).ToDictionary(k => k.Id, v => v);
+
+            foreach(var post in posts)
+            {
+                if(authorLookup.TryGetValue(post.AuthorId, out var author))
+                {
+                    post.Author = author;
+                }
+            }
+        }
+
 		public async Task<IEnumerable<PostItem>> GetList(PagingDescriptor pagingDescriptor, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
 		{
 			var posts = await GetPosts(pagingDescriptor, include, author, category);
@@ -310,6 +414,11 @@ namespace Blogifier.Core.Providers.EfCore
 			}
 			return await Task.FromResult(items);
 		}
+
+        private IEnumerable<PostItem> PostToPostItems(IEnumerable<Post> posts)
+        {
+            return posts.Select(p => PostToItem(p));
+        }
 
 		public async Task<bool> Remove(Guid id)
 		{

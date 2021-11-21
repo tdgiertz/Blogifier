@@ -7,6 +7,8 @@ namespace Blogifier.Core.Providers
 {
     public interface IPostProvider
 	{
+        Task<IEnumerable<PostItem>> GetPublishedListAsync(InfinitePagingDescriptor pagingDescriptor, string category = null);
+        Task<IEnumerable<PostItem>> GetFeaturedListAsync(InfinitePagingDescriptor pagingDescriptor);
 		Task<List<Post>> GetPosts(PublishedStatus filter, PostType postType);
 		Task<List<Post>> SearchPosts(string term);
 		Task<Post> GetPostById(Guid id);

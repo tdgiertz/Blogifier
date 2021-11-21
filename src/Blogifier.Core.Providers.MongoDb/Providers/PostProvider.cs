@@ -262,6 +262,81 @@ namespace Blogifier.Core.Providers.MongoDb
             return result.IsAcknowledged && result.ModifiedCount > 0;
         }
 
+        public async Task<IEnumerable<PostItem>> GetPublishedListAsync(InfinitePagingDescriptor pagingDescriptor, string category = null)
+        {
+            var searchTerms = pagingDescriptor.SearchTerm?.ToLower().Split(' ').ToList();
+            var builder = Builders<Post>.Filter;
+
+            var searchTermFilter = GetSearchTermsFilter(searchTerms);
+            var filterDefinition = searchTermFilter ?? builder.Empty;
+
+            if(pagingDescriptor.LastDateTime.HasValue)
+            {
+                filterDefinition = builder.And(filterDefinition, builder.Lt(p => p.Published, pagingDescriptor.LastDateTime));
+            }
+            else
+            {
+                filterDefinition = builder.And(filterDefinition, builder.Gt(p => p.Published, DateTime.MinValue));
+            }
+
+            if(!string.IsNullOrEmpty(category))
+            {
+                filterDefinition = builder.And(filterDefinition, builder.ElemMatch(p => p.Categories, Builders<Category>.Filter.Regex(c => c.Content, new BsonRegularExpression(category.ToLower(), "i"))));
+            }
+
+            return await GetListByExpressionAsync(pagingDescriptor, filterDefinition);
+        }
+
+        public async Task<IEnumerable<PostItem>> GetFeaturedListAsync(InfinitePagingDescriptor pagingDescriptor)
+        {
+            Expression<Func<Post, bool>> filterDefinition = pagingDescriptor.LastDateTime != DateTime.MinValue
+                ? p => p.IsFeatured && p.Published < pagingDescriptor.LastDateTime
+                : p => p.IsFeatured;
+
+            return await GetListByExpressionAsync(pagingDescriptor, filterDefinition);
+        }
+
+        private async Task<IEnumerable<PostItem>> GetListByExpressionAsync(InfinitePagingDescriptor pagingDescriptor, FilterDefinition<Post> filterDefinition)
+        {
+            IEnumerable<Post> posts = await _postCollection
+                .Find(filterDefinition)
+                .SortByDescending(p => p.Published)
+                .Limit(pagingDescriptor.PageSize + 1)
+                .ToListAsync();
+
+            var setAuthorTask = SetPostAuthorsAsync(posts);
+
+            pagingDescriptor.HasMorePages = posts.Count() > pagingDescriptor.PageSize;
+            posts = posts.Take(pagingDescriptor.PageSize);
+
+            await setAuthorTask;
+
+            return PostToPostItems(posts);
+        }
+
+        private async Task SetPostAuthorsAsync(IEnumerable<Post> posts)
+        {
+            var authorIds = posts.Select(p => p.AuthorId).Distinct();
+
+            var builder = Builders<Author>.Filter;
+            var filter = builder.Empty;
+
+            foreach(var authorId in authorIds)
+            {
+                filter = builder.Or(filter, builder.Eq(a => a.Id, authorId));
+            }
+
+            var authorLookup = (await _authorCollection.Find(filter).ToListAsync()).ToDictionary(k => k.Id, v => v);
+
+            foreach(var post in posts)
+            {
+                if(authorLookup.TryGetValue(post.AuthorId, out var author))
+                {
+                    post.Author = author;
+                }
+            }
+        }
+
         public async Task<IEnumerable<PostItem>> GetList(PagingDescriptor pagingDescriptor, Guid author = default(Guid), string category = "", string include = "", bool sanitize = true)
         {
             var posts = await GetPagedPostsAsync(pagingDescriptor, include, author, category);
@@ -418,14 +493,13 @@ namespace Blogifier.Core.Providers.MongoDb
 
             foreach (var searchTerm in searchTerms)
             {
-                var filter1 = Builders<Post>.Filter.ElemMatch(p => p.Categories, Builders<Category>.Filter.Regex(c => c.Content, new BsonRegularExpression(searchTerm, "i")));
-                var filter2 = Builders<Post>.Filter.Regex($"{nameof(Post.Content)}", new BsonRegularExpression(searchTerm, "i"));
-                var filter3 = Builders<Post>.Filter.Regex($"{nameof(Post.Title)}", new BsonRegularExpression(searchTerm, "i"));
-                var filter4 = Builders<Post>.Filter.Regex($"{nameof(Post.Description)}", new BsonRegularExpression(searchTerm, "i"));
+                var filter1 = Builders<Post>.Filter.Regex($"{nameof(Post.Content)}", new BsonRegularExpression(searchTerm, "i"));
+                var filter2 = Builders<Post>.Filter.Regex($"{nameof(Post.Title)}", new BsonRegularExpression(searchTerm, "i"));
+                var filter3 = Builders<Post>.Filter.Regex($"{nameof(Post.Description)}", new BsonRegularExpression(searchTerm, "i"));
 
                 definition = definition == null
-                    ? Builders<Post>.Filter.Or(filter1, filter2, filter3, filter4)
-                    : Builders<Post>.Filter.Or(definition, filter1, filter2, filter3, filter4);
+                    ? Builders<Post>.Filter.Or(filter1, filter2, filter3)
+                    : Builders<Post>.Filter.Or(definition, filter1, filter2, filter3);
             }
 
             return definition;

@@ -33,7 +33,7 @@ namespace Blogifier.Tests.MongoDb
                 Assert.Null(post.Author);
             }
 
-            var pager = new Pager(0, 10);
+            var pager = new PagingDescriptor(0, 10);
 
             var posts = await provider.GetList(pager);
 
@@ -49,7 +49,7 @@ namespace Blogifier.Tests.MongoDb
         {
             var provider = GetPostProvider();
 
-            var pager = new Pager(1, 2);
+            var pager = new PagingDescriptor(1, 2);
 
             var posts = await provider.Search(pager, "Test");
 

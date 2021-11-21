@@ -28,18 +28,17 @@
     </ul>
 }
 
-@if (UploadFiles != null && UploadFiles.Count() > 0)
-{
-    <div class="row mt-3">
-        <div class="col-12">
-            <div class="list-search collapse" id="collapseSearch">
-                <input @ref="SearchInput" @bind="FileSearchModel.SearchTerm" @onkeyup="SearchKeyPressAsync" class="list-search-input" type="search">
-                <button @onclick="async () => await LoadAsync()" class="list-search-button" type="button">
-                    @_localizer["search"]
-                </button>
-            </div>
-            <ul class="list-group" aria-label="files">
-                <Virtualize Items="UploadFiles" Context="file">
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="list-search collapse" id="collapseSearch">
+            <input @ref="SearchInput" @bind="FileSearchModel.SearchTerm" @onkeyup="SearchKeyPressAsync" class="list-search-input" type="search">
+            <button @onclick="async () => await LoadAsync()" class="list-search-button" type="button">
+                @_localizer["search"]
+            </button>
+        </div>
+        <ul class="list-group mt-3" aria-label="files">
+            <InfiniteScroll @ref="InfiniteScroll" Items="UploadFiles" ItemsProvider="LoadItems">
+                <ItemTemplate Context="file">
                     <li class="list-group-item">
                         @if(OnLink.HasDelegate)
                         {
@@ -50,12 +49,11 @@
                             <FileComponent UploadFileModel="file" OnDelete="id => RemoveFile(file)"></FileComponent>
                         }
                     </li>
-                </Virtualize>
-            </ul>
-            <PagerComponent PagingDescriptor="FileSearchModel.PagingDescriptor" OnPageChanged="@OnPageChanged" />
-        </div>
+                </ItemTemplate>
+            </InfiniteScroll>
+        </ul>
     </div>
-}
+</div>
 
 @code {
     [Inject]
@@ -68,9 +66,10 @@
     [Parameter]
     public EventCallback<FileModel> OnLink { get; set; }
 
+    private InfiniteScroll<UploadFileModel> InfiniteScroll;
     private ElementReference SearchInput;
-    private IList<UploadFileModel> UploadFiles;
-    private FileSearchModel FileSearchModel = new FileSearchModel { PagingDescriptor = new PagingDescriptor(1) };
+    private List<UploadFileModel> UploadFiles = new();
+    private FileSearchModel FileSearchModel = new FileSearchModel { PagingDescriptor = new InfinitePagingDescriptor { PageSize = 15 } };
     private ConcurrentDictionary<string, UploadFileModel> FilesToUpload = new();
     public static int MaxAllowedFiles = 100;
 
@@ -89,28 +88,53 @@
                 }
             });
         }
-        await LoadAsync();
     }
 
     protected async Task SearchKeyPressAsync(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
+            await Task.CompletedTask;
             await LoadAsync();
         }
     }
 
     private async Task LoadAsync()
     {
+        await InfiniteScroll.ReloadAsync();
+    }
+
+    private async Task<ScrollItemsResponse<UploadFileModel>> LoadItems(ScrollItemsProviderRequest<UploadFileModel> request)
+    {
+        FileSearchModel.PagingDescriptor = new InfinitePagingDescriptor
+        {
+            LastDateTime = request.Model?.FileModel?.DateCreated,
+            PageSize = 10
+        };
+
         var result = await FileService.GetListAsync(FileSearchModel);
-        FileSearchModel.PagingDescriptor.SetTotalCount(result.PagingDescriptor.TotalCount);
-        UploadFiles = result.Results.Select(r => new UploadFileModel { FileModel = r, UploadState = new() }).ToList();
-        StateHasChanged();
+
+        return new ScrollItemsResponse<UploadFileModel>
+        {
+            Items = result.Results.Select(r => new UploadFileModel { FileModel = r, UploadState = new() }).ToList(),
+            HasMoreItems = result.PagingDescriptor.HasMorePages
+        };
     }
 
     private async Task OnSaveUploadFileAsync(KeyValuePair<string, UploadFileModel> entry)
     {
         await RemoveUploadFileAsync(entry);
+        if(UploadFiles.Count() > 100)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            if(!UploadFiles.Any(f => f.FileModel.Id == entry.Value.FileModel.Id))
+            {
+                UploadFiles.Insert(0, entry.Value);
+            }
+        }
     }
 
     private void RemoveFile(UploadFileModel model)
@@ -123,13 +147,8 @@
 
     private async Task RemoveUploadFileAsync(KeyValuePair<string, UploadFileModel> entry)
     {
+        await Task.CompletedTask;
         FilesToUpload.TryRemove(entry);
-        await LoadAsync();
-    }
-
-    private async Task OnPageChanged(int pageNumber)
-    {
-        await LoadAsync();
     }
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)

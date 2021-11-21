@@ -119,7 +119,7 @@ namespace Blogifier.Admin.Serivces
 
         public async Task<PagedResult<FileModel>> GetListAsync(FileSearchModel fileSearchModel)
         {
-            fileSearchModel.PagingDescriptor ??= new PagingDescriptor(1, 20);
+            fileSearchModel.PagingDescriptor ??= new InfinitePagingDescriptor { PageSize = 15 };
             var response = await _httpClient.PostAsJsonAsync($"api/file/list/", fileSearchModel);
             return await response.Content.ReadFromJsonAsync<PagedResult<FileModel>>();
         }

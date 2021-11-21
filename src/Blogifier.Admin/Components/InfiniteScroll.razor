@@ -1,0 +1,119 @@
+﻿@using System.Threading
+@typeparam T
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+@foreach(var item in Items)
+{
+    @ItemTemplate(item)
+}
+@if (Loading)
+{
+    @LoadingTemplate
+}
+
+<div @ref="LastItemIndicator" style="height:1px"></div>
+
+@code {
+    private ElementReference LastItemIndicator;
+    private DotNetObjectReference<InfiniteScroll<T>> CurrentComponentReference;
+    private IJSObjectReference Module;
+    private IJSObjectReference Instance;
+    private bool Loading = false;
+    private CancellationTokenSource LoadItemsCts;
+    private T LastModel = default;
+    private bool HasMoreItems = true;
+
+    [Parameter]
+    public List<T> Items { get; set; }
+
+    [Parameter]
+    public ItemsProviderRequestDelegate<T> ItemsProvider { get; set; }
+
+    [Parameter]
+    public RenderFragment<T> ItemTemplate { get; set; }
+
+    [Parameter]
+    public RenderFragment LoadingTemplate { get; set; }
+
+    public async Task ReloadAsync()
+    {
+        Items.Clear();
+        HasMoreItems = true;
+        LastModel = default;
+        await LoadMoreItems();
+    }
+
+    [JSInvokable]
+    public async Task LoadMoreItems()
+    {
+        if (Loading || !HasMoreItems)
+        {
+            return;
+        }
+
+        Loading = true;
+        try
+        {
+            LoadItemsCts ??= new CancellationTokenSource();
+
+            StateHasChanged();
+            try
+            {
+                var response = await ItemsProvider(new ScrollItemsProviderRequest<T>(Items.Count, LastModel, LoadItemsCts.Token));
+
+                if(!response.Items.Any())
+                {
+                    HasMoreItems = false;
+                    return;
+                }
+
+                Items.AddRange(response.Items);
+                LastModel = response.Items.Last();
+                HasMoreItems = response.HasMoreItems;
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == LoadItemsCts.Token)
+            {
+            }
+        }
+        finally
+        {
+            Loading = false;
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./admin/js/infiniteScroll.js");
+            CurrentComponentReference = DotNetObjectReference.Create(this);
+            Instance = await Module.InvokeAsync<IJSObjectReference>("initialize", LastItemIndicator, CurrentComponentReference);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (LoadItemsCts != null)
+        {
+            LoadItemsCts.Dispose();
+            LoadItemsCts = null;
+        }
+
+        if (Instance != null)
+        {
+            await Instance.InvokeVoidAsync("dispose");
+            await Instance.DisposeAsync();
+            Instance = null;
+        }
+
+        if (Module != null)
+        {
+            await Module.DisposeAsync();
+        }
+
+        CurrentComponentReference?.Dispose();
+    }
+}

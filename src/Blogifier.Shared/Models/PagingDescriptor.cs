@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Blogifier.Shared
 {
+
     public class PagingDescriptor
     {
         [JsonInclude]

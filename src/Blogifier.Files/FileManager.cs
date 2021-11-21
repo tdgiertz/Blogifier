@@ -88,17 +88,26 @@ namespace Blogifier.Files
 
         public async Task<PagedResult<FileModel>> GetPagedAsync(FileSearchModel searchModel)
         {
-            var fileDescriptors = await _fileDescriptorProvider.GetPagedAsync(searchModel.PagingDescriptor, searchModel.SearchTerm);
+            var originalPageSize = searchModel.PagingDescriptor.PageSize;
+            searchModel.PagingDescriptor.PageSize += 1;
+            var pagingDescriptor = new InfinitePagingDescriptor
+            {
+                PageSize = searchModel.PagingDescriptor.PageSize + 1,
+                LastDateTime = searchModel.PagingDescriptor.LastDateTime
+            };
+            var fileDescriptors = await _fileDescriptorProvider.GetPagedAsync(pagingDescriptor, searchModel.SearchTerm);
 
             var accountName = _fileStoreProvider.GetAccountName();
 
+            searchModel.PagingDescriptor.HasMorePages = fileDescriptors.Count() > originalPageSize;
+
             return new PagedResult<FileModel>
             {
-                Results = fileDescriptors
+                Results = fileDescriptors.Take(originalPageSize)
                     .Select(async d => d.ToFileModel(await GetUrlAsync(d), await GetThumbnailUrlAsync(d)))
                     .Select(t => t.Result)
                     .ToList(),
-                PagingDescriptor = searchModel.PagingDescriptor
+                PagingDescriptor = searchModel.PagingDescriptor,
             };
         }
 

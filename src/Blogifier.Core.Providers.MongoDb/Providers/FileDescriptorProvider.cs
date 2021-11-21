@@ -40,6 +40,46 @@ namespace Blogifier.Core.Providers.MongoDb
             return count > 0;
         }
 
+        public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(InfinitePagingDescriptor pagingDescriptor, string searchTerm)
+        {
+            var builder = Builders<FileDescriptor>.Filter;
+
+            var pageFilter = builder.Empty;
+
+            if(pagingDescriptor.LastDateTime != null)
+            {
+                pageFilter = builder.Lt(d => d.DateCreated, pagingDescriptor.LastDateTime);
+            }
+
+            var filter = builder.Empty;
+
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                filter = builder.Or(
+                    builder.Regex(d => d.Filename, new BsonRegularExpression(searchTerm, "i")),
+                    builder.Regex(d => d.Description, new BsonRegularExpression(searchTerm, "i")));
+            }
+
+            filter = builder.And(pageFilter, filter);
+
+            var sortDefinitions = new[]
+            {
+                new Models.SortDefinition<FileDescriptor> { IsDescending = true, Sort = d => d.DateCreated },
+                new Models.SortDefinition<FileDescriptor> { IsDescending = true, Sort = d => d.Id }
+            };
+
+            var result = await _fileCollection
+                .Find(filter)
+                .SortByDescending(d => d.DateCreated)
+                .ThenByDescending(d => d.Id)
+                .Limit(pagingDescriptor.PageSize)
+                .ToListAsync();
+
+            return result;
+
+            // return await _fileCollection.GetPagedAsync(pagingDescriptor, filter, sortDefinitions);
+        }
+
         public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(PagingDescriptor pagingDescriptor, string searchTerm)
         {
             var builder = Builders<FileDescriptor>.Filter;

@@ -41,6 +41,27 @@ namespace Blogifier.Core.Providers.EfCore
             return count > 0;
         }
 
+        public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(InfinitePagingDescriptor pagingDescriptor, string searchTerm)
+        {
+            IQueryable<FileDescriptor> query = _db.FileDescriptors
+                .OrderByDescending(d => d.DateCreated)
+                .ThenByDescending(d => d.Id);
+
+            if(pagingDescriptor.LastDateTime != null)
+            {
+                query = query.Where(d => d.DateCreated < pagingDescriptor.LastDateTime);
+            }
+
+            if(!string.IsNullOrEmpty(searchTerm))
+            {
+                query = query.Where(d => d.Filename.ToLower().Contains(searchTerm.ToLower()) || d.Description.ToLower().Contains(searchTerm.ToLower()));
+            }
+
+            query = query.Take(pagingDescriptor.PageSize);
+
+            return await query.ToListAsync();
+        }
+
         public async Task<IEnumerable<FileDescriptor>> GetPagedAsync(PagingDescriptor pagingDescriptor, string searchTerm)
         {
             IQueryable<FileDescriptor> query = _db.FileDescriptors.OrderByDescending(d => d.DateCreated);
